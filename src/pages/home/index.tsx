@@ -70,28 +70,30 @@ export default function HomePage() {
   useGSAP(() => {
     const mm = gsap.matchMedia();
     mm.add("(prefers-reduced-motion: no-preference)", () => {
-      const intro = gsap.timeline({ defaults: { ease: motionEase } });
-      intro.from("nav", { y: -14, autoAlpha: 0, duration: 0.32 })
-        .from(".hero-copy > *", { y: 16, autoAlpha: 0, duration: 0.38, stagger: 0.06 }, "-=0.12")
-        .from(".hero-visual", { x: 18, autoAlpha: 0, duration: 0.5 }, "-=0.25");
+      const intro = gsap.timeline({ delay: 0.2, defaults: { ease: motionEase } });
+      intro.from("nav", { y: -14, autoAlpha: 0, duration: 0.5 })
+        .from(".hero-copy > *", { y: 18, autoAlpha: 0, duration: 0.68, stagger: 0.11 }, "-=0.2")
+        .from(".hero-visual", { x: 22, autoAlpha: 0, duration: 0.82 }, "-=0.48");
 
       gsap.utils.toArray<HTMLElement>("[data-reveal]").forEach((element) => {
-        gsap.from(element, {
-          y: 24,
-          autoAlpha: 0,
-          duration: 0.45,
+        gsap.set(element, { y: 24, autoAlpha: 0 });
+        gsap.to(element, {
+          y: 0,
+          autoAlpha: 1,
+          duration: 0.68,
           ease: motionEase,
-          scrollTrigger: { trigger: element, start: "top 86%", once: true },
+          scrollTrigger: { trigger: element, start: "top 74%", once: true },
         });
       });
 
-      gsap.from(".event-card", {
-        y: 20,
-        autoAlpha: 0,
-        duration: 0.4,
-        stagger: 0.07,
+      gsap.set(".event-card", { y: 20, autoAlpha: 0 });
+      gsap.to(".event-card", {
+        y: 0,
+        autoAlpha: 1,
+        duration: 0.65,
+        stagger: 0.11,
         ease: motionEase,
-        scrollTrigger: { trigger: "#events", start: "top 78%", once: true },
+        scrollTrigger: { trigger: "#events", start: "top 72%", once: true },
       });
 
       const hoverCards = gsap.utils.toArray<HTMLElement>(".event-card");
@@ -108,15 +110,25 @@ export default function HomePage() {
   useGSAP(() => {
     if (!menuRef.current) return;
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (menuOpen) {
+      gsap.set(menuRef.current, { autoAlpha: 1, pointerEvents: "auto" });
+      gsap.fromTo(menuRef.current, { y: reduce ? 0 : -8, scale: reduce ? 1 : 0.98 }, {
+        y: 0,
+        scale: 1,
+        duration: reduce ? 0 : 0.18,
+        ease: motionEase,
+        overwrite: true,
+      });
+      return;
+    }
     gsap.to(menuRef.current, {
-      y: menuOpen || reduce ? 0 : -8,
-      scale: menuOpen || reduce ? 1 : 0.98,
-      autoAlpha: menuOpen ? 1 : 0,
+      y: reduce ? 0 : -8,
+      scale: reduce ? 1 : 0.98,
+      autoAlpha: 0,
       duration: reduce ? 0 : 0.18,
       ease: motionEase,
       overwrite: true,
-      onStart: () => { if (menuOpen) menuRef.current?.style.setProperty("pointer-events", "auto"); },
-      onComplete: () => { if (!menuOpen) menuRef.current?.style.setProperty("pointer-events", "none"); },
+      onComplete: () => menuRef.current?.style.setProperty("pointer-events", "none"),
     });
   }, { dependencies: [menuOpen], scope: pageRef });
 
