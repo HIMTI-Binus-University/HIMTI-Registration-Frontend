@@ -17,7 +17,71 @@
   --muted-foreground: 0 0% 35%;
   --border: 0 0% 81%;
   --ring: 213 100% 35%;
+  --brand-navy: 214 100% 15%;
+  --brand-blue: 213 100% 40%;
+  --brand-sky: 197 100% 70%;
+  --brand-pale: 211 100% 96%;
+  --brand-ink: 221 47% 12%;
+  --brand-slate: 215 25% 34%;
 }
 
 * { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
 body { margin: 0; min-width: 320px; }
+
+@layer components {
+  .nav-link {
+    @apply rounded-lg text-sm font-semibold text-brand-slate transition-colors hover:text-brand-blue focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2;
+  }
+
+  .section-label {
+    @apply text-sm font-bold uppercase tracking-[0.18em] text-brand-blue;
+  }
+}
+
+.hero-grid {
+  background-color: hsl(var(--background));
+  background-image:
+    linear-gradient(hsl(var(--brand-blue) / 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(var(--brand-blue) / 0.045) 1px, transparent 1px);
+  background-size: 52px 52px;
+  mask-image: linear-gradient(to bottom, black 45%, transparent 95%);
+}
+
+.network-lines {
+  background-image:
+    radial-gradient(circle at 18% 78%, hsl(var(--brand-sky)) 0 3px, transparent 4px),
+    radial-gradient(circle at 70% 60%, hsl(var(--brand-sky)) 0 3px, transparent 4px),
+    radial-gradient(circle at 80% 18%, hsl(var(--brand-sky)) 0 3px, transparent 4px),
+    linear-gradient(35deg, transparent 49.7%, hsl(var(--brand-sky) / 0.2) 50%, transparent 50.3%);
+}
+
+.cta-rings {
+  background:
+    radial-gradient(circle at 10% 100%, transparent 0 19%, hsl(0 0% 100% / 0.24) 19.2% 19.5%, transparent 19.7% 29%, hsl(0 0% 100% / 0.18) 29.2% 29.5%, transparent 29.7%),
+    radial-gradient(circle at 92% 0%, transparent 0 15%, hsl(0 0% 100% / 0.2) 15.2% 15.5%, transparent 15.7% 24%, hsl(0 0% 100% / 0.14) 24.2% 24.5%, transparent 24.7%);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .hero-copy { animation: rise-in 650ms ease-out both; }
+  .hero-visual { animation: rise-in 650ms 120ms ease-out both; }
+  .auth-card { animation: rise-in 500ms ease-out both; }
+  .dashboard-hero { animation: rise-in 550ms ease-out both; }
+  .dashboard-content > * { animation: rise-in 500ms ease-out both; }
+  .dashboard-content > *:nth-child(2) { animation-delay: 90ms; }
+  .dashboard-content > *:nth-child(3) { animation-delay: 150ms; }
+  .contact-row { transition: border-color 180ms ease-out, background-color 180ms ease-out; }
+  .contact-row:hover { border-color: hsl(var(--brand-blue) / 0.3); background-color: hsl(var(--brand-pale) / 0.8); }
+  .dashboard-card { transition: box-shadow 220ms ease-out, transform 220ms ease-out; }
+  .dashboard-card:hover { transform: translateY(-2px); box-shadow: 0 24px 60px -38px rgba(0, 33, 79, 0.55); }
+  .registration-complete { animation: rise-in 500ms ease-out both; }
+}
+
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+}
