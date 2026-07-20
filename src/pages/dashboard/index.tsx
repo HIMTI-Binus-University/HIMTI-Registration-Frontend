@@ -1,6 +1,8 @@
 import { ArrowLeft, ArrowUpRight, House, MapPin, Phone, MessageCircle, Users } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { gsap, motionEase, useGSAP } from "@/lib/motion";
+import { useRef } from "react";
 
 const contactPeople = [
   ["KMG & SNY", "Dara Anggraini", "081284855127"],
@@ -12,8 +14,15 @@ const contactPeople = [
 ] as const;
 
 export default function DashboardPage() {
+  const pageRef = useRef<HTMLElement>(null);
+  useGSAP(() => {
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    gsap.from(".dashboard-hero", { y: reduce ? 0 : 16, autoAlpha: 0, duration: reduce ? 0.16 : 0.34, ease: motionEase });
+    gsap.from(".dashboard-card", { y: reduce ? 0 : 18, autoAlpha: 0, duration: reduce ? 0.16 : 0.3, stagger: reduce ? 0 : 0.07, ease: motionEase, delay: reduce ? 0 : 0.08 });
+    gsap.from(".contact-row", { y: reduce ? 0 : 10, autoAlpha: 0, duration: reduce ? 0.12 : 0.22, stagger: reduce ? 0 : 0.04, ease: motionEase, delay: reduce ? 0 : 0.18 });
+  }, { scope: pageRef });
   return (
-    <main className="dashboard-shell min-h-screen bg-background px-4 py-6 sm:px-8 sm:py-10">
+    <main ref={pageRef} className="dashboard-shell min-h-screen bg-background px-4 py-6 sm:px-8 sm:py-10">
       <div className="mx-auto max-w-6xl">
         <header className="flex items-center justify-between">
           <Link to="/" className="flex items-center gap-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
@@ -43,5 +52,5 @@ export default function DashboardPage() {
 }
 
 function WhatsAppLink({ label }: { label: string }) {
-  return <div className="group flex flex-col items-start gap-3 rounded-2xl border border-brand-blue/10 bg-brand-pale/35 p-4 transition-colors hover:border-brand-blue/30 hover:bg-brand-pale/70 min-[460px]:flex-row min-[460px]:items-center min-[460px]:justify-between"><div className="flex min-w-0 items-center gap-3"><span className="grid size-10 shrink-0 place-items-center rounded-xl bg-white text-brand-blue shadow-sm"><MessageCircle className="size-5" /></span><div className="min-w-0"><p className="font-bold text-brand-ink">{label}</p><p className="mt-0.5 text-xs text-brand-slate">WhatsApp community group</p></div></div><span className="flex items-center gap-1 pl-[3.25rem] text-xs font-bold text-brand-blue min-[460px]:pl-0">Coming soon <ArrowUpRight className="size-4 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" /></span></div>;
+  return <div className="group flex flex-col items-start gap-3 rounded-2xl border border-brand-blue/10 bg-brand-pale/35 p-4 transition-colors hover:border-brand-blue/30 hover:bg-brand-pale/70 min-[460px]:flex-row min-[460px]:items-center min-[460px]:justify-between"><div className="flex min-w-0 items-center gap-3"><span className="grid size-10 shrink-0 place-items-center rounded-xl bg-white text-brand-blue shadow-sm"><MessageCircle className="size-5" /></span><div className="min-w-0"><p className="font-bold text-brand-ink">{label}</p><p className="mt-0.5 text-xs text-brand-slate">WhatsApp community group</p></div></div><span className="flex items-center gap-1 pl-[3.25rem] text-xs font-bold text-brand-blue min-[460px]:pl-0">Coming soon <ArrowUpRight className="size-4" /></span></div>;
 }

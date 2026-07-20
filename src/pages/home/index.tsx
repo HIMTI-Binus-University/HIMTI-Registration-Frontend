@@ -12,8 +12,13 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useRef } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { gsap, motionDuration, motionEase, useGSAP } from "@/lib/motion";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+
+gsap.registerPlugin(ScrollTrigger);
 
 const events = [
   {
@@ -52,6 +57,8 @@ function Brand() {
 
 export default function HomePage() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const pageRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -60,8 +67,61 @@ export default function HomePage() {
     return () => window.removeEventListener("keydown", closeOnEscape);
   }, [menuOpen]);
 
+  useGSAP(() => {
+    const mm = gsap.matchMedia();
+    mm.add("(prefers-reduced-motion: no-preference)", () => {
+      const intro = gsap.timeline({ defaults: { ease: motionEase } });
+      intro.from("nav", { y: -14, autoAlpha: 0, duration: 0.32 })
+        .from(".hero-copy > *", { y: 16, autoAlpha: 0, duration: 0.38, stagger: 0.06 }, "-=0.12")
+        .from(".hero-visual", { x: 18, autoAlpha: 0, duration: 0.5 }, "-=0.25");
+
+      gsap.utils.toArray<HTMLElement>("[data-reveal]").forEach((element) => {
+        gsap.from(element, {
+          y: 24,
+          autoAlpha: 0,
+          duration: 0.45,
+          ease: motionEase,
+          scrollTrigger: { trigger: element, start: "top 86%", once: true },
+        });
+      });
+
+      gsap.from(".event-card", {
+        y: 20,
+        autoAlpha: 0,
+        duration: 0.4,
+        stagger: 0.07,
+        ease: motionEase,
+        scrollTrigger: { trigger: "#events", start: "top 78%", once: true },
+      });
+
+      const hoverCards = gsap.utils.toArray<HTMLElement>(".event-card");
+      hoverCards.forEach((card) => {
+        const enter = () => gsap.to(card, { y: -4, backgroundColor: "rgba(255,255,255,0.11)", duration: motionDuration, overwrite: true });
+        const leave = () => gsap.to(card, { y: 0, backgroundColor: "rgba(255,255,255,0.07)", duration: motionDuration, overwrite: true });
+        card.addEventListener("mouseenter", enter);
+        card.addEventListener("mouseleave", leave);
+        return () => { card.removeEventListener("mouseenter", enter); card.removeEventListener("mouseleave", leave); };
+      });
+    }, pageRef);
+  }, { scope: pageRef });
+
+  useGSAP(() => {
+    if (!menuRef.current) return;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    gsap.to(menuRef.current, {
+      y: menuOpen || reduce ? 0 : -8,
+      scale: menuOpen || reduce ? 1 : 0.98,
+      autoAlpha: menuOpen ? 1 : 0,
+      duration: reduce ? 0 : 0.18,
+      ease: motionEase,
+      overwrite: true,
+      onStart: () => { if (menuOpen) menuRef.current?.style.setProperty("pointer-events", "auto"); },
+      onComplete: () => { if (!menuOpen) menuRef.current?.style.setProperty("pointer-events", "none"); },
+    });
+  }, { dependencies: [menuOpen], scope: pageRef });
+
   return (
-    <div id="top" className="min-h-screen overflow-hidden bg-background text-brand-ink">
+    <div id="top" ref={pageRef} className="min-h-screen overflow-hidden bg-background text-brand-ink">
       <header className="fixed inset-x-0 top-4 z-50 px-4 sm:top-6">
         <nav
           aria-label="Main navigation"
@@ -84,7 +144,7 @@ export default function HomePage() {
           <button type="button" className="grid size-11 place-items-center rounded-xl text-brand-navy transition-colors hover:bg-brand-pale focus:outline-none focus:ring-2 focus:ring-ring md:hidden" aria-label={menuOpen ? "Close menu" : "Open menu"} aria-expanded={menuOpen} aria-controls="mobile-navigation" onClick={() => setMenuOpen((open) => !open)}>
             {menuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
           </button>
-          <div id="mobile-navigation" className={`mobile-menu absolute inset-x-0 top-[calc(100%+0.5rem)] overflow-hidden rounded-2xl border border-white/80 bg-white/95 shadow-[0_20px_55px_-30px_rgba(0,33,79,0.5)] backdrop-blur-xl md:hidden ${menuOpen ? "mobile-menu-open" : ""}`} aria-hidden={!menuOpen}>
+           <div id="mobile-navigation" ref={menuRef} className={`mobile-menu absolute inset-x-0 top-[calc(100%+0.5rem)] overflow-hidden rounded-2xl border border-white/80 bg-white/95 shadow-[0_20px_55px_-30px_rgba(0,33,79,0.5)] backdrop-blur-xl md:hidden ${menuOpen ? "mobile-menu-open" : ""}`} aria-hidden={!menuOpen}>
             <div className="grid gap-1 p-3">
               {["About", "Events", "Membership"].map((label) => <a key={label} className="rounded-xl px-4 py-3 text-sm font-semibold text-brand-slate hover:bg-brand-pale hover:text-brand-blue focus:outline-none focus:ring-2 focus:ring-ring" href={`#${label === "Membership" ? "join" : label.toLowerCase()}`} tabIndex={menuOpen ? 0 : -1} onClick={() => setMenuOpen(false)}>{label}</a>)}
               <div className="my-1 border-t border-brand-blue/10" />
@@ -165,7 +225,7 @@ export default function HomePage() {
         </section>
 
         <section id="about" className="scroll-mt-32 px-6 py-24 sm:py-32 lg:px-8">
-          <div className="mx-auto grid max-w-6xl gap-12 lg:grid-cols-[0.75fr_1.25fr] lg:gap-24">
+             <div data-reveal className="mx-auto grid max-w-6xl gap-12 lg:grid-cols-[0.75fr_1.25fr] lg:gap-24">
             <div>
               <p className="section-label">What is HIMTI?</p>
               <h2 className="mt-4 text-3xl font-bold leading-tight tracking-[-0.04em] text-brand-navy sm:text-4xl">More than an organization. A place to belong.</h2>
@@ -202,14 +262,14 @@ export default function HomePage() {
 
             <div className="mt-14 grid gap-5 lg:grid-cols-3">
               {events.map(({ type, title, description, icon: Icon }) => (
-                <article key={type} className="group flex min-h-[330px] flex-col rounded-3xl border border-white/10 bg-white/[0.07] p-7 backdrop-blur-sm transition duration-300 hover:-translate-y-1 hover:bg-white/[0.11] sm:p-8">
+                 <article key={type} className="event-card group flex min-h-[330px] flex-col rounded-3xl border border-white/10 bg-white/[0.07] p-7 backdrop-blur-sm sm:p-8">
                   <div className="flex items-center justify-between">
                     <span className="grid size-12 place-items-center rounded-2xl bg-brand-blue text-white"><Icon className="size-5" /></span>
                     <span className="text-xs font-semibold uppercase tracking-[0.16em] text-brand-sky">{type}</span>
                   </div>
                   <h3 className="mt-12 text-2xl font-bold leading-8 tracking-tight">{title}</h3>
                   <p className="mt-4 text-sm leading-6 text-blue-100">{description}</p>
-                  <span className="mt-auto flex items-center gap-2 pt-7 text-sm font-semibold text-brand-sky">Explore together <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" /></span>
+                  <span className="mt-auto flex items-center gap-2 pt-7 text-sm font-semibold text-brand-sky">Explore together <ArrowRight className="size-4" /></span>
                 </article>
               ))}
             </div>
