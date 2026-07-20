@@ -1,6 +1,7 @@
-# <PROJECT_NAME>
+# HIMTI Regis Frontend
 
-<PROJECT_DESCRIPTION>
+Frontend boilerplate for the HIMTI Regis application. It is intentionally kept
+small so forks can add feature folders as the product grows.
 
 ## Project Structure
 
@@ -27,7 +28,7 @@
 │   └── vite-env.d.ts           # Vite environment types
 ├── .env                        # Local environment variables (do not commit)
 ├── .env.example                # Environment variable template
-├── .eslintrc.cjs               # ESLint configuration
+├── eslint.config.js            # ESLint configuration
 ├── index.html                  # HTML entry point
 ├── package.json                # Dependencies and scripts
 ├── postcss.config.js           # PostCSS configuration
