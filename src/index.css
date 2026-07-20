@@ -30,56 +30,30 @@ html { scroll-behavior: smooth; }
 body { margin: 0; min-width: 320px; }
 
 @layer components {
-  .nav-link {
-    @apply rounded-lg text-sm font-semibold text-brand-slate transition-colors hover:text-brand-blue focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2;
-  }
-
-  .section-label {
-    @apply text-sm font-bold uppercase tracking-[0.18em] text-brand-blue;
-  }
 }
 
-.hero-grid {
-  background-color: hsl(var(--background));
-  background-image:
-    linear-gradient(hsl(var(--brand-blue) / 0.045) 1px, transparent 1px),
-    linear-gradient(90deg, hsl(var(--brand-blue) / 0.045) 1px, transparent 1px);
-  background-size: 52px 52px;
-  mask-image: linear-gradient(to bottom, black 45%, transparent 95%);
-}
-
-.network-lines {
-  background-image:
-    radial-gradient(circle at 18% 78%, hsl(var(--brand-sky)) 0 3px, transparent 4px),
-    radial-gradient(circle at 70% 60%, hsl(var(--brand-sky)) 0 3px, transparent 4px),
-    radial-gradient(circle at 80% 18%, hsl(var(--brand-sky)) 0 3px, transparent 4px),
-    linear-gradient(35deg, transparent 49.7%, hsl(var(--brand-sky) / 0.2) 50%, transparent 50.3%);
-}
-
-.cta-rings {
+.hero-wash {
   background:
-    radial-gradient(circle at 10% 100%, transparent 0 19%, hsl(0 0% 100% / 0.24) 19.2% 19.5%, transparent 19.7% 29%, hsl(0 0% 100% / 0.18) 29.2% 29.5%, transparent 29.7%),
-    radial-gradient(circle at 92% 0%, transparent 0 15%, hsl(0 0% 100% / 0.2) 15.2% 15.5%, transparent 15.7% 24%, hsl(0 0% 100% / 0.14) 24.2% 24.5%, transparent 24.7%);
+    radial-gradient(circle at 82% 50%, hsl(var(--brand-sky) / 0.28), transparent 31%),
+    radial-gradient(circle at 8% 90%, hsl(var(--brand-blue) / 0.1), transparent 32%),
+    hsl(var(--background));
 }
 
-.mobile-menu {
-  visibility: hidden;
-  opacity: 0;
-  transform-origin: top;
-  pointer-events: none;
-}
-
-.mobile-menu-open {
-  visibility: visible;
-  opacity: 1;
-  pointer-events: auto;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .contact-row { transition: border-color 180ms ease-out, background-color 180ms ease-out; }
-  .contact-row:hover { border-color: hsl(var(--brand-blue) / 0.3); background-color: hsl(var(--brand-pale) / 0.8); }
+.hero-wash::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(circle, hsl(var(--brand-blue) / 0.14) 1px, transparent 1.5px);
+  background-size: 28px 28px;
+  mask-image: linear-gradient(90deg, black, transparent 48%);
 }
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
