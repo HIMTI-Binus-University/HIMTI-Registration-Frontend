@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { BrowserRouter, MemoryRouter } from "react-router-dom";
 import { afterEach, expect, test } from "vitest";
@@ -17,6 +17,19 @@ test("renders the HIMTI landing page", () => {
   expect(screen.getAllByRole("link", { name: /register|become a member|start your registration/i })).not.toHaveLength(0);
 });
 
+test("opens and closes the mobile navigation", async () => {
+  const user = userEvent.setup();
+  render(<MemoryRouter initialEntries={["/"]}><App /></MemoryRouter>);
+
+  const menuButton = screen.getByRole("button", { name: /open menu/i });
+  await user.click(menuButton);
+  expect(within(document.getElementById("mobile-navigation")!).getByRole("link", { name: "Membership" })).toBeInTheDocument();
+  expect(menuButton).toHaveAttribute("aria-expanded", "true");
+
+  await user.keyboard("{Escape}");
+  expect(screen.getByRole("button", { name: /open menu/i })).toHaveAttribute("aria-expanded", "false");
+});
+
 test("renders the registration wizard and advances through the first step", async () => {
   render(
     <MemoryRouter initialEntries={["/register"]}>
@@ -25,7 +38,8 @@ test("renders the registration wizard and advances through the first step", asyn
   );
 
   expect(screen.getByRole("heading", { name: /tell us about yourself/i })).toBeInTheDocument();
-  expect(screen.getByText("Step 1 of 4")).toBeInTheDocument();
+  expect(screen.getAllByText(/Step 1 of 4/)).not.toHaveLength(0);
+  expect(screen.getByLabelText(/registration progress, step 1 of 4/i)).toBeInTheDocument();
 });
 
 test("shows BINUS verification and clears institution details when the path changes", async () => {

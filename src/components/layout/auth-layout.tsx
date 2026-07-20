@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 
 export function AuthLayout({ children }: { children: ReactNode }) {
   return (
-    <main className="relative grid min-h-screen place-items-center overflow-hidden bg-background px-4 py-8 sm:px-6">
+    <main className="relative grid min-h-screen place-items-center overflow-hidden bg-background px-3 py-5 sm:px-6 sm:py-8">
       <div aria-hidden="true" className="hero-grid absolute inset-0" />
       <div aria-hidden="true" className="absolute -right-36 -top-36 size-96 rounded-full bg-brand-sky/20 blur-3xl" />
       <div className="relative w-full max-w-xl">

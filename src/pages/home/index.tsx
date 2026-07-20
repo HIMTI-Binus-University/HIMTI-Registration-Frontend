@@ -5,10 +5,13 @@ import {
   Code2,
   GraduationCap,
   MapPin,
+  Menu,
   Network,
   Sparkles,
   Users,
+  X,
 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 
@@ -48,12 +51,21 @@ function Brand() {
 }
 
 export default function HomePage() {
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === "Escape") setMenuOpen(false); };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [menuOpen]);
+
   return (
     <div id="top" className="min-h-screen overflow-hidden bg-background text-brand-ink">
       <header className="fixed inset-x-0 top-4 z-50 px-4 sm:top-6">
         <nav
           aria-label="Main navigation"
-          className="mx-auto flex max-w-6xl items-center justify-between rounded-2xl border border-white/70 bg-white/80 px-3 py-3 shadow-[0_16px_50px_-24px_rgba(0,33,79,0.32)] backdrop-blur-xl sm:px-5"
+          className="relative mx-auto flex max-w-6xl items-center justify-between rounded-2xl border border-white/70 bg-white/80 px-3 py-3 shadow-[0_16px_50px_-24px_rgba(0,33,79,0.32)] backdrop-blur-xl sm:px-5"
         >
           <Brand />
           <div className="hidden items-center gap-8 md:flex">
@@ -61,7 +73,7 @@ export default function HomePage() {
             <a className="nav-link" href="#events">Events</a>
             <a className="nav-link" href="#join">Membership</a>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="hidden items-center gap-2 md:flex">
             <Button asChild variant="outline" className="hidden border-brand-blue/25 px-4 text-brand-blue hover:bg-brand-pale sm:inline-flex">
               <Link to="/login">Log in</Link>
             </Button>
@@ -69,11 +81,22 @@ export default function HomePage() {
               <Link to="/register">Register <ArrowRight className="ml-2 size-4" /></Link>
             </Button>
           </div>
+          <button type="button" className="grid size-11 place-items-center rounded-xl text-brand-navy transition-colors hover:bg-brand-pale focus:outline-none focus:ring-2 focus:ring-ring md:hidden" aria-label={menuOpen ? "Close menu" : "Open menu"} aria-expanded={menuOpen} aria-controls="mobile-navigation" onClick={() => setMenuOpen((open) => !open)}>
+            {menuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
+          </button>
+          <div id="mobile-navigation" className={`mobile-menu absolute inset-x-0 top-[calc(100%+0.5rem)] overflow-hidden rounded-2xl border border-white/80 bg-white/95 shadow-[0_20px_55px_-30px_rgba(0,33,79,0.5)] backdrop-blur-xl md:hidden ${menuOpen ? "mobile-menu-open" : ""}`} aria-hidden={!menuOpen}>
+            <div className="grid gap-1 p-3">
+              {["About", "Events", "Membership"].map((label) => <a key={label} className="rounded-xl px-4 py-3 text-sm font-semibold text-brand-slate hover:bg-brand-pale hover:text-brand-blue focus:outline-none focus:ring-2 focus:ring-ring" href={`#${label === "Membership" ? "join" : label.toLowerCase()}`} tabIndex={menuOpen ? 0 : -1} onClick={() => setMenuOpen(false)}>{label}</a>)}
+              <div className="my-1 border-t border-brand-blue/10" />
+              <Button asChild variant="outline" className="w-full border-brand-blue/20"><Link to="/login" tabIndex={menuOpen ? 0 : -1}>Log in</Link></Button>
+              <Button asChild className="mt-1 w-full"><Link to="/register" tabIndex={menuOpen ? 0 : -1}>Register <ArrowRight className="ml-2 size-4" /></Link></Button>
+            </div>
+          </div>
         </nav>
       </header>
 
       <main>
-        <section className="relative isolate flex min-h-[760px] items-center overflow-hidden px-6 pb-24 pt-40 sm:min-h-[820px] lg:px-8 lg:pt-44">
+        <section className="relative isolate flex items-center overflow-hidden px-5 pb-20 pt-32 sm:min-h-[820px] sm:px-6 sm:pb-24 sm:pt-40 lg:px-8 lg:pt-44">
           <div aria-hidden="true" className="hero-grid absolute inset-0 -z-20" />
           <div aria-hidden="true" className="absolute -right-40 top-8 -z-10 size-[34rem] rounded-full bg-brand-sky/20 blur-3xl" />
           <div aria-hidden="true" className="absolute -left-40 bottom-0 -z-10 size-[28rem] rounded-full bg-brand-blue/10 blur-3xl" />
@@ -84,7 +107,7 @@ export default function HomePage() {
                 <Sparkles className="size-4" />
                 Built for BINUS computing students
               </div>
-              <h1 className="mt-7 text-5xl font-bold leading-[1.04] tracking-[-0.055em] text-brand-navy sm:text-6xl lg:text-[4.65rem]">
+              <h1 className="mt-7 text-4xl font-bold leading-[1.06] tracking-[-0.05em] text-brand-navy min-[380px]:text-5xl sm:text-6xl lg:text-[4.65rem]">
                 Find your people.<br />
                 <span className="text-brand-blue">Build what&apos;s next.</span>
               </h1>
@@ -92,10 +115,10 @@ export default function HomePage() {
                 HIMTI is where BINUS computing students connect, learn, and grow through a community made for technology and the people behind it.
               </p>
               <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-                <Button asChild className="h-13 px-6 text-base shadow-[0_16px_30px_-16px_rgba(0,91,204,0.9)]">
+                <Button asChild className="min-h-12 w-full px-6 text-base shadow-[0_16px_30px_-16px_rgba(0,91,204,0.9)] sm:w-auto">
                   <Link to="/register">Become a member <ArrowRight className="ml-2 size-5" /></Link>
                 </Button>
-                <Button asChild variant="outline" className="h-13 border-brand-blue/20 bg-white/60 px-6 text-base text-brand-navy backdrop-blur-sm hover:bg-white">
+                <Button asChild variant="outline" className="min-h-12 w-full border-brand-blue/20 bg-white/60 px-6 text-base text-brand-navy backdrop-blur-sm hover:bg-white sm:w-auto">
                   <a href="#about">Discover HIMTI <ChevronRight className="ml-1 size-5" /></a>
                 </Button>
               </div>
@@ -104,7 +127,7 @@ export default function HomePage() {
 
             <div className="hero-visual relative mx-auto w-full max-w-[500px] lg:mx-0 lg:justify-self-end">
               <div className="relative rounded-[2rem] border border-white/80 bg-white/60 p-4 shadow-[0_35px_80px_-38px_rgba(0,33,79,0.42)] backdrop-blur-xl sm:p-6">
-                <div className="relative min-h-[410px] overflow-hidden rounded-[1.5rem] bg-brand-navy p-7 text-white sm:min-h-[460px] sm:p-9">
+                <div className="relative min-h-[360px] overflow-hidden rounded-[1.5rem] bg-brand-navy p-6 text-white sm:min-h-[460px] sm:p-9">
                   <div aria-hidden="true" className="network-lines absolute inset-0 opacity-60" />
                   <div className="relative flex items-start justify-between">
                     <div>

@@ -19,7 +19,7 @@ export default function LoginPage() {
 
   return (
     <AuthLayout>
-      <section className="rounded-3xl border border-white/80 bg-white/90 p-6 shadow-[0_24px_70px_-35px_rgba(0,33,79,0.45)] backdrop-blur-xl sm:p-9">
+      <section className="auth-card rounded-2xl border border-white/80 bg-white/90 p-5 shadow-[0_24px_70px_-35px_rgba(0,33,79,0.45)] backdrop-blur-xl sm:rounded-3xl sm:p-9">
         <p className="section-label">Member access</p>
         <h1 className="mt-3 text-3xl font-bold tracking-[-0.04em] text-brand-navy">Continue to HIMTI</h1>
         <p className="mt-3 text-sm leading-6 text-brand-slate">
@@ -36,7 +36,7 @@ export default function LoginPage() {
         <p className="mt-5 text-center text-xs leading-5 text-brand-slate">
           By continuing, you agree to provide the information required for HIMTI membership.
         </p>
-        <Link className="mt-7 flex items-center justify-center gap-2 rounded-lg text-sm font-semibold text-brand-blue focus:outline-none focus:ring-2 focus:ring-ring" to="/">
+        <Link className="mt-7 flex min-h-11 items-center justify-center gap-2 rounded-lg text-sm font-semibold text-brand-blue focus:outline-none focus:ring-2 focus:ring-ring" to="/">
           <ArrowLeft className="size-4" /> Back to home
         </Link>
       </section>
