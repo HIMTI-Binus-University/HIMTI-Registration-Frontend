@@ -5,13 +5,14 @@ import RegisterPage from "@/pages/register";
 import DashboardPage from "@/pages/dashboard";
 import VerifyOutlookPage from "@/pages/verify-outlook";
 import type { AppRoute } from "@/types/common";
+import { RequireAuth, RequireCompletedRegistration } from "@/components/auth-guards";
 
 export const routes: AppRoute[] = [
   { path: "/", element: <HomePage /> },
   { path: "/login", element: <LoginPage /> },
   { path: "/auth/callback", element: <AuthCallbackPage /> },
-  { path: "/register", element: <RegisterPage /> },
-  { path: "/dashboard", element: <DashboardPage /> },
+  { path: "/register", element: <RequireAuth><RegisterPage /></RequireAuth> },
+  { path: "/dashboard", element: <RequireAuth><RequireCompletedRegistration><DashboardPage /></RequireCompletedRegistration></RequireAuth> },
   { path: "/verify-outlook", element: <VerifyOutlookPage /> },
   { path: "*", element: <HomePage /> },
 ];

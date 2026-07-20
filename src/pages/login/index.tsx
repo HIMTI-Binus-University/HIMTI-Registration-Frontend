@@ -1,7 +1,8 @@
 import { ArrowLeft } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { AuthLayout } from "@/components/layout/auth-layout";
 import { Button } from "@/components/ui/button";
+import { signInWithGoogle } from "@/api/auth";
 
 function GoogleMark() {
   return (
@@ -15,8 +16,6 @@ function GoogleMark() {
 }
 
 export default function LoginPage() {
-  const navigate = useNavigate();
-
   return (
     <AuthLayout>
       <section className="auth-card rounded-2xl border border-white/80 bg-white/90 p-5 shadow-[0_24px_70px_-35px_rgba(0,33,79,0.45)] backdrop-blur-xl sm:rounded-3xl sm:p-9">
@@ -29,7 +28,7 @@ export default function LoginPage() {
           type="button"
           variant="outline"
           className="mt-8 h-12 w-full gap-3 border-brand-blue/20 bg-white text-brand-ink hover:bg-brand-pale"
-          onClick={() => navigate("/auth/callback")}
+           onClick={() => void signInWithGoogle()}
         >
           <GoogleMark /> Continue with Google
         </Button>

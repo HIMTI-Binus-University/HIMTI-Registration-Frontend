@@ -2,12 +2,18 @@ import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { BrowserRouter, MemoryRouter } from "react-router-dom";
 import { afterEach, expect, test } from "vitest";
+import type React from "react";
 import App from "@/App";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 afterEach(cleanup);
 
+function renderApp(ui: React.ReactNode) {
+  return render(<QueryClientProvider client={new QueryClient()}>{ui}</QueryClientProvider>);
+}
+
 test("renders the HIMTI landing page", () => {
-  render(
+  renderApp(
     <BrowserRouter>
       <App />
     </BrowserRouter>,
@@ -21,7 +27,7 @@ test("renders the HIMTI landing page", () => {
 });
 
 test("renders the registration wizard and advances through the first step", async () => {
-  render(
+  renderApp(
     <MemoryRouter initialEntries={["/register"]}>
       <App />
     </MemoryRouter>,
@@ -35,7 +41,7 @@ test("renders the registration wizard and advances through the first step", asyn
 });
 
 test("renders the member dashboard sections", () => {
-  render(<MemoryRouter initialEntries={["/dashboard"]}><App /></MemoryRouter>);
+  renderApp(<MemoryRouter initialEntries={["/dashboard"]}><App /></MemoryRouter>);
 
   expect(screen.getByRole("heading", { name: "HIMTI Member" })).toBeInTheDocument();
   expect(screen.getByRole("heading", { name: "Your Events" })).toBeInTheDocument();
@@ -48,7 +54,7 @@ test("renders the member dashboard sections", () => {
 
 test("shows BINUS verification and clears institution details when the path changes", async () => {
   const user = userEvent.setup();
-  render(<MemoryRouter initialEntries={["/register"]}><App /></MemoryRouter>);
+  renderApp(<MemoryRouter initialEntries={["/register"]}><App /></MemoryRouter>);
 
   await user.click(screen.getByRole("button", { name: "Student" }));
   await user.click(screen.getByRole("button", { name: "BINUS" }));

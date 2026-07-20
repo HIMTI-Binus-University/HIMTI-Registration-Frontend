@@ -14,8 +14,9 @@ import { useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { gsap, motionEase, useGSAP } from "@/lib/motion";
+import { useProfile, usePublishedEvents } from "@/api/registration";
 
-const profile = {
+const fallbackProfile = {
   name: "HIMTI Member",
   initials: "HM",
   type: "Student",
@@ -36,69 +37,6 @@ const yourEvents = [
   },
 ];
 
-const events = [
-  {
-    title: "TECHNO 2026: Wondrous Wonderland",
-    description:
-      "A welcoming journey for new School of Computer Science students to meet their community.",
-    image: "/himti-icon.svg",
-    subevents: [
-      {
-        title: "Welcoming Party",
-        description: "Meet your cohort, mentors, and the HIMTI community.",
-        month: "SEP",
-        day: "07",
-        type: "Main event",
-        time: "10:00–14:00",
-        location: "BINUS Alam Sutera",
-        price: "Free",
-        availability: "Open",
-      },
-      {
-        title: "Build With AI Workshop",
-        description: "Build a practical project alongside HIMTI mentors.",
-        month: "SEP",
-        day: "18",
-        type: "Workshop",
-        time: "15:30–18:00",
-        location: "Online via Zoom",
-        price: "Rp25.000",
-        availability: "12 seats left",
-      },
-    ],
-  },
-  {
-    title: "HIMTI Career Days 2026",
-    description:
-      "Explore technology careers through focused talks and practical sessions.",
-    image: "/himti-icon.svg",
-    subevents: [
-      {
-        title: "Engineering Career Talk",
-        description: "Hear directly from engineers building products at scale.",
-        month: "OCT",
-        day: "04",
-        type: "Seminar",
-        time: "13:00–15:00",
-        location: "BINUS Kemanggisan",
-        price: "Free",
-        availability: "Open",
-      },
-      {
-        title: "Portfolio Review Clinic",
-        description: "Get direct feedback on your CV and project portfolio.",
-        month: "OCT",
-        day: "05",
-        type: "Workshop",
-        time: "10:00–12:00",
-        location: "BINUS Kemanggisan",
-        price: "Free",
-        availability: "8 seats left",
-      },
-    ],
-  },
-] as const;
-
 const groups = [
   ["Grup SOCS B30", "https://chat.whatsapp.com/DummySocsB30Invite"],
   ["Grup HIMTI GJKT", "https://chat.whatsapp.com/DummyHimtiGjktInvite"],
@@ -114,6 +52,10 @@ const contactPeople = [
 ] as const;
 
 export default function DashboardPage() {
+  const profileQuery = useProfile();
+  const eventsQuery = usePublishedEvents();
+  const user = profileQuery.data;
+  const profile = user ? { name: user.name, initials: user.name.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase(), type: "Member", institution: user.university?.name ?? "", major: user.studyProgram?.name ?? "", region: user.region?.name ?? "" } : fallbackProfile;
   const pageRef = useRef<HTMLElement>(null);
   useGSAP(
     () => {
@@ -270,9 +212,24 @@ export default function DashboardPage() {
             copy="Choose a subevent and register your place."
           />
           <div className="mt-4 space-y-5">
-            {events.map((event) => (
-              <EventCard key={event.title} event={event} />
+            {(eventsQuery.data ?? []).map((event) => (
+              <article key={event.id} className="rounded-2xl border border-brand-blue/10 bg-white p-5 sm:p-6">
+                <h3 className="text-xl font-bold text-brand-navy">{event.name}</h3>
+                <p className="mt-2 text-sm leading-6 text-brand-slate">{event.publicDescription}</p>
+                <div className="mt-4 grid gap-4 md:grid-cols-2">
+                  {event.subevents.map((subevent) => (
+                    <div key={subevent.id} className="rounded-xl bg-brand-pale/40 p-4">
+                      <p className="text-xs font-bold text-brand-blue">{subevent.type.replaceAll("_", " ")}</p>
+                      <h4 className="mt-1 font-bold text-brand-navy">{subevent.name}</h4>
+                      <p className="mt-2 text-sm text-brand-slate">{subevent.publicDescription}</p>
+                      <p className="mt-3 text-sm text-brand-slate">{new Date(subevent.date).toLocaleString()} · {subevent.locationName ?? "Online"}</p>
+                      <Button className="mt-4">Register <ArrowRight className="ml-2 size-4" /></Button>
+                    </div>
+                  ))}
+                </div>
+              </article>
             ))}
+            {!eventsQuery.isPending && !eventsQuery.data?.length && <p className="rounded-2xl border border-dashed border-brand-blue/20 p-6 text-sm text-brand-slate">No open events are available right now.</p>}
           </div>
         </section>
 
@@ -318,67 +275,6 @@ export default function DashboardPage() {
         </section>
       </div>
     </main>
-  );
-}
-
-function EventCard({ event }: { event: (typeof events)[number] }) {
-  return (
-    <article className="overflow-hidden rounded-2xl border border-brand-blue/10 bg-white">
-      <header className="flex flex-col gap-4 border-b border-brand-blue/10 p-5 sm:flex-row sm:items-center sm:p-6">
-        <div className="grid size-20 shrink-0 place-items-center overflow-hidden rounded-xl bg-brand-navy p-4">
-          <img src={event.image} alt="" className="size-full object-contain" />
-        </div>
-        <div>
-          <h3 className="text-xl font-bold tracking-[-0.02em] text-brand-navy sm:text-2xl">
-            {event.title}
-          </h3>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-brand-slate">
-            {event.description}
-          </p>
-          <p className="mt-2 text-xs font-bold text-brand-blue">
-            {event.subevents.length} subevents
-          </p>
-        </div>
-      </header>
-      <div className="grid gap-4 bg-brand-pale/25 p-4 md:grid-cols-2 sm:p-5">
-        {event.subevents.map((subevent) => (
-          <SubeventCard key={subevent.title} subevent={subevent} />
-        ))}
-      </div>
-    </article>
-  );
-}
-
-function SubeventCard({
-  subevent,
-}: {
-  subevent: (typeof events)[number]["subevents"][number];
-}) {
-  return (
-    <section className="flex flex-col rounded-xl border border-brand-blue/10 bg-white p-4 sm:p-5">
-      <div className="flex items-start justify-between gap-4">
-        <DateBlock month={subevent.month} day={subevent.day} />
-        <span className="rounded-full bg-brand-pale px-2.5 py-1 text-xs font-bold text-brand-blue">
-          {subevent.availability}
-        </span>
-      </div>
-      <p className="mt-4 text-xs font-bold text-brand-blue">{subevent.type}</p>
-      <h4 className="mt-1 text-lg font-bold text-brand-navy">
-        {subevent.title}
-      </h4>
-      <p className="mt-2 text-sm leading-6 text-brand-slate">
-        {subevent.description}
-      </p>
-      <div className="mt-4">
-        <EventMeta time={subevent.time} location={subevent.location} />
-        <p className="mt-2 text-sm font-bold text-brand-navy">
-          {subevent.price}
-        </p>
-      </div>
-      <Button className="mt-auto self-end pt-3">
-        Register <ArrowRight className="ml-2 size-4" />
-      </Button>
-    </section>
   );
 }
 

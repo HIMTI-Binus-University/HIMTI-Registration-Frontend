@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { AuthLayout } from "@/components/layout/auth-layout";
 import { Button } from "@/components/ui/button";
 import { gsap, useGSAP } from "@/lib/motion";
+import apiClient from "@/config/api-client";
+import { apiPaths } from "@/constants/api";
 
 export default function VerifyOutlookPage() {
   const [params] = useSearchParams();
@@ -17,7 +19,11 @@ export default function VerifyOutlookPage() {
 
   useEffect(() => {
     if (!params.get("status")) {
-      const timeout = window.setTimeout(() => setStatus("success"), 700);
+      const timeout = window.setTimeout(() => {
+        apiClient.get(apiPaths.verifyEmail, { params: { token: params.get("token") } })
+          .then(() => setStatus("success"))
+          .catch(() => setStatus("invalid"));
+      }, 700);
       return () => window.clearTimeout(timeout);
     }
   }, [params]);

@@ -1,13 +1,14 @@
 import { LoaderCircle } from "lucide-react";
 import { useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { AuthLayout } from "@/components/layout/auth-layout";
 import { gsap, useGSAP } from "@/lib/motion";
 import { useRef } from "react";
+import { useProfile } from "@/api/registration";
 
 export default function AuthCallbackPage() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const profile = useProfile();
   const spinnerRef = useRef<SVGSVGElement>(null);
 
   useGSAP(() => {
@@ -16,10 +17,9 @@ export default function AuthCallbackPage() {
   }, { scope: spinnerRef });
 
   useEffect(() => {
-    const destination = searchParams.get("profile") === "complete" ? "/dashboard" : "/register";
-    const timeout = window.setTimeout(() => navigate(destination, { replace: true }), 500);
-    return () => window.clearTimeout(timeout);
-  }, [navigate, searchParams]);
+    if (!profile.isSuccess) return;
+    navigate(profile.data.registrationCompleted ? "/dashboard" : "/register", { replace: true });
+  }, [navigate, profile.data, profile.isSuccess]);
 
   return (
     <AuthLayout>

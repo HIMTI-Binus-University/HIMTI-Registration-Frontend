@@ -9,6 +9,8 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { useCompleteProfile, useProfile, useRegistrationOptions, useSendVerification } from "@/api/registration";
+import axios from "axios";
 
 type UserType = "Student" | "Lecturer" | "Other";
 type InstitutionType = "BINUS" | "Non-BINUS";
@@ -26,7 +28,6 @@ type RegistrationData = {
   major: string;
   university: string;
   institution: string;
-  studentId: string;
   department: string;
   affiliation: string;
 };
@@ -45,28 +46,11 @@ const initialData: RegistrationData = {
   major: "",
   university: "",
   institution: "",
-  studentId: "",
   department: "",
   affiliation: "",
 };
 
 const steps = ["Your path", "About you", "Your institution", "Review"];
-const regions = [
-  "Kemanggisan",
-  "Alam Sutera",
-  "Bekasi",
-  "Bandung",
-  "Malang",
-  "Other",
-];
-const binusMajors = [
-  "Computer Science",
-  "Cyber Security",
-  "Data Science",
-  "Game Application and Technology",
-  "Information Systems",
-  "Information Technology",
-];
 const institutionKeys: Array<keyof RegistrationData> = [
   "nim",
   "batch",
@@ -75,7 +59,6 @@ const institutionKeys: Array<keyof RegistrationData> = [
   "major",
   "university",
   "institution",
-  "studentId",
   "department",
   "affiliation",
 ];
@@ -130,7 +113,7 @@ function SelectField({
   label: string;
   name: keyof RegistrationData;
   value: string;
-  options: string[];
+  options: Array<{ value: string; label: string }>;
   onChange: (name: keyof RegistrationData, value: string) => void;
 }) {
   return (
@@ -151,7 +134,7 @@ function SelectField({
         >
           <option value="">Choose one</option>
           {options.map((option) => (
-            <option key={option}>{option}</option>
+            <option key={option.value} value={option.value}>{option.label}</option>
           ))}
         </select>
         <ChevronDown className="pointer-events-none absolute right-3 top-3 size-5 text-brand-slate" />
@@ -164,16 +147,19 @@ function Choice({
   label,
   selected,
   onClick,
+  disabled = false,
 }: {
   label: string;
   selected: boolean;
   onClick: () => void;
+  disabled?: boolean;
 }) {
   return (
     <button
       type="button"
       aria-pressed={selected}
       onClick={onClick}
+      disabled={disabled}
       className={`rounded-2xl border p-4 text-left transition focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${selected ? "border-brand-blue bg-brand-pale text-brand-blue shadow-sm" : "border-brand-blue/15 bg-white hover:border-brand-blue/40"}`}
     >
       <span className="flex items-center justify-between font-bold">
@@ -196,7 +182,23 @@ export default function RegisterPage() {
   const [pathNotice, setPathNotice] = useState("");
   const [emailVerified, setEmailVerified] = useState(false);
   const [verificationSent, setVerificationSent] = useState(false);
+  const hydratedProfile = useRef(false);
   const firstError = useRef<HTMLDivElement>(null);
+  const profile = useProfile();
+  const options = useRegistrationOptions();
+  const completeProfile = useCompleteProfile();
+  const sendVerification = useSendVerification();
+  const pathLocked = Boolean(profile.data?.registrationCompleted);
+
+  useEffect(() => {
+    const user = profile.data;
+    if (!user) return;
+     if (!hydratedProfile.current) {
+       hydratedProfile.current = true;
+       setData((current) => ({ ...current, name: user.name, personalEmail: user.email, phone: user.phoneNumber ?? "", lineId: user.lineId ?? "", nim: user.nim ?? "", batch: user.graduateBatch ?? "", binusEmail: user.outlookEmail ?? "", region: user.regionId ?? "", major: user.studyProgramId ?? "", university: user.university?.name ?? "", institution: user.university?.name ?? "" }));
+       setEmailVerified(user.outlookEmailVerified);
+     }
+  }, [profile.data]);
 
   useEffect(() => {
     if (errors.length) firstError.current?.focus();
@@ -257,8 +259,8 @@ export default function RegisterPage() {
               type="button"
               variant="outline"
               className="mt-4 min-h-11 w-full bg-white sm:w-auto"
-              disabled={!data.binusEmail}
-              onClick={() => setVerificationSent(true)}
+              disabled={!data.binusEmail || sendVerification.isPending}
+              onClick={() => sendVerification.mutate(data.binusEmail, { onSuccess: () => setVerificationSent(true) })}
             >
               Send verification link
             </Button>
@@ -270,20 +272,19 @@ export default function RegisterPage() {
                 link, then return here.
               </p>
               <p className="mt-2 text-xs text-brand-slate">
-                Verification is simulated while the verification service is
-                being connected.
+                After opening the link, check the verification status here.
               </p>
               <Button
                 type="button"
                 className="mt-4 min-h-11 w-full sm:w-auto"
-                onClick={() => setEmailVerified(true)}
+                  onClick={() => void profile.refetch().then(({ data: user }) => setEmailVerified(Boolean(user?.outlookEmailVerified && user.outlookEmail?.toLowerCase() === data.binusEmail.toLowerCase())))}
               >
                 Check verification status
               </Button>
               <button
                 type="button"
                 className="mt-3 block min-h-11 w-full rounded-lg text-sm font-semibold text-brand-blue focus:outline-none focus:ring-2 focus:ring-ring sm:w-auto sm:px-2"
-                onClick={() => setVerificationSent(true)}
+                onClick={() => sendVerification.mutate(data.binusEmail)}
               >
                 Resend verification link
               </button>
@@ -319,14 +320,14 @@ export default function RegisterPage() {
             label="BINUS region"
             name="region"
             value={data.region}
-            options={regions}
+            options={(options.data?.binusRegions ?? []).map((item) => ({ value: item.id, label: item.name }))}
             onChange={update}
           />
           <SelectField
             label="BINUS major"
             name="major"
             value={data.major}
-            options={binusMajors}
+            options={(options.data?.studyPrograms ?? []).map((item) => ({ value: item.id, label: item.name }))}
             onChange={update}
           />
         </div>
@@ -342,8 +343,8 @@ export default function RegisterPage() {
           />
           <Field
             label="Student ID / NIM"
-            name="studentId"
-            value={data.studentId}
+            name="nim"
+            value={data.nim}
             onChange={update}
           />
           <Field
@@ -370,7 +371,7 @@ export default function RegisterPage() {
             label="BINUS region"
             name="region"
             value={data.region}
-            options={regions}
+            options={(options.data?.binusRegions ?? []).map((item) => ({ value: item.id, label: item.name }))}
             onChange={update}
           />
           <Field
@@ -461,7 +462,7 @@ export default function RegisterPage() {
     if (data.userType === "Student")
       return [
         ["university", "Enter your university"],
-        ["studentId", "Enter your student ID / NIM"],
+        ["nim", "Enter your student ID / NIM"],
         ["major", "Enter your major"],
       ];
     if (data.institutionType === "BINUS")
@@ -498,7 +499,18 @@ export default function RegisterPage() {
     }
     setStep((current) => Math.min(current + 1, 3));
   };
-  const submit = () => setSubmitted(true);
+  const submit = () => {
+    setErrors([]);
+     completeProfile.mutate({ name: data.name, nim: data.nim || undefined, universityId: options.data?.universities.find((item) => item.name === "BINUS University")?.id ?? "", studyProgramId: data.major, regionId: data.region || undefined, graduateBatch: data.batch, phoneNumber: data.phone, lineId: data.lineId, outlookEmail: data.binusEmail || undefined }, {
+      onSuccess: () => setSubmitted(true),
+      onError: (error) => {
+        const body = axios.isAxiosError(error) ? error.response?.data : null;
+        const registrationError = body?.errors?.registration;
+        const fieldErrors = body?.errors && typeof body.errors === "object" ? Object.values(body.errors).flatMap((value) => typeof value === "object" && value && "_errors" in value ? (value as { _errors?: string[] })._errors ?? [] : []) : [];
+        setErrors([registrationError || fieldErrors[0] || body?.msg || "Registration could not be saved"]);
+      },
+    });
+  };
 
   if (submitted)
     return (
@@ -620,6 +632,7 @@ export default function RegisterPage() {
                         label={value}
                         selected={data.userType === value}
                         onClick={() => changePath("userType", value)}
+                        disabled={pathLocked}
                       />
                     ),
                   )}
@@ -632,11 +645,13 @@ export default function RegisterPage() {
                     label="BINUS"
                     selected={data.institutionType === "BINUS"}
                     onClick={() => changePath("institutionType", "BINUS")}
+                    disabled={pathLocked}
                   />
                   <Choice
                     label="Non-BINUS"
                     selected={data.institutionType === "Non-BINUS"}
                     onClick={() => changePath("institutionType", "Non-BINUS")}
+                    disabled={pathLocked}
                   />
                 </div>
               </div>
@@ -773,8 +788,9 @@ export default function RegisterPage() {
                 type="button"
                 className="min-h-11 flex-1 sm:ml-auto sm:flex-none"
                 onClick={submit}
+                disabled={completeProfile.isPending}
               >
-                Submit registration <Send className="ml-2 size-4" />
+                {completeProfile.isPending ? "Saving..." : "Submit registration"} <Send className="ml-2 size-4" />
               </Button>
             )}
           </div>
