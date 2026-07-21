@@ -15,6 +15,10 @@ import {
   useSendUserEmailVerification,
   useUserRegistrationOptions,
 } from "@/api/users/queries";
+import {
+  useMembershipStatus,
+  useReregisterCurrentUser,
+} from "@/api/membership/queries";
 import type { UserRegistrationOptions } from "@/api/users/queries";
 import {
   buildRegistrationPayload,
@@ -171,7 +175,11 @@ function Choice({
   );
 }
 
-export default function RegisterPage() {
+export default function RegisterPage({
+  reregister = false,
+}: {
+  reregister?: boolean;
+}) {
   const [step, setStep] = useState(0);
   const [data, setData] = useState(initialData);
   const [errors, setErrors] = useState<string[]>([]);
@@ -183,16 +191,36 @@ export default function RegisterPage() {
   const firstError = useRef<HTMLDivElement>(null);
   const profile = useCurrentUser();
   const options = useUserRegistrationOptions();
+  const membershipStatus = useMembershipStatus();
   const completeProfile = useCompleteCurrentUserProfile();
+  const reregisterProfile = useReregisterCurrentUser();
   const sendVerification = useSendUserEmailVerification();
+  const saveProfile = reregister ? reregisterProfile : completeProfile;
+  const membershipPeriod = reregister
+    ? membershipStatus.data?.availablePeriod
+    : membershipStatus.data?.activePeriod;
 
   useEffect(() => {
     const user = profile.data;
-    if (!user) return;
+    if (!user || (reregister && !options.data)) return;
     if (!hydratedProfile.current) {
       hydratedProfile.current = true;
       setData((current) => ({
         ...current,
+        userType:
+          user.memberType === "STUDENT"
+            ? "Student"
+            : user.memberType === "LECTURER"
+              ? "Lecturer"
+              : user.memberType === "OTHER"
+                ? "Other"
+                : "",
+        institutionType:
+          user.institutionType === "BINUS"
+            ? "BINUS"
+            : user.institutionType === "NON_BINUS"
+              ? "Non-BINUS"
+              : "",
         name: user.name,
         personalEmail: user.email,
         phone: user.phoneNumber ?? "",
@@ -200,14 +228,30 @@ export default function RegisterPage() {
         nim: user.nim ?? "",
         batch: user.graduateBatch ?? "",
         binusEmail: user.outlookEmail ?? "",
-        region: user.regionId ?? "",
-        major: user.studyProgramId ?? "",
-        university: user.university?.name ?? "",
-        institution: user.university?.name ?? "",
+        region:
+          !reregister ||
+          options.data?.binusRegions.some(
+            (region) => region.id === user.regionId,
+          )
+            ? (user.regionId ?? "")
+            : "",
+        major:
+          user.institutionType === "BINUS"
+            ? !reregister ||
+              options.data?.studyPrograms.some(
+                (program) => program.id === user.studyProgramId,
+              )
+              ? (user.studyProgramId ?? "")
+              : ""
+            : (user.studyProgramName ?? ""),
+        university: user.university?.name ?? user.universityName ?? "",
+        institution: user.universityName ?? user.university?.name ?? "",
+        department: user.department ?? "",
+        affiliation: user.affiliation ?? "",
       }));
       setEmailVerified(user.outlookEmailVerified);
     }
-  }, [profile.data]);
+  }, [options.data, profile.data, reregister]);
 
   useEffect(() => {
     if (errors.length) firstError.current?.focus();
@@ -470,6 +514,13 @@ export default function RegisterPage() {
     const missing = required
       .filter(([key]) => !data[key])
       .map(([, message]) => message);
+    if (step === 0 && !membershipPeriod) {
+      missing.push(
+        membershipStatus.isPending
+          ? "Membership period is still loading"
+          : "No active membership period is available",
+      );
+    }
     if (step === 2 && (!data.userType || !data.institutionType))
       return ["Choose your registration path first"];
     if (step === 2) {
@@ -548,7 +599,7 @@ export default function RegisterPage() {
       setErrors(["BINUS University is unavailable"]);
       return;
     }
-    completeProfile.mutate(buildRegistrationPayload(data, options.data), {
+    saveProfile.mutate(buildRegistrationPayload(data, options.data), {
       onSuccess: () => setSubmitted(true),
       onError: (error) => {
         const body = axios.isAxiosError(error) ? error.response?.data : null;
@@ -578,13 +629,16 @@ export default function RegisterPage() {
           <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-brand-pale text-brand-blue">
             <Send />
           </span>
-          <p className="section-label mt-6">Registration complete</p>
+          <p className="section-label mt-6">
+            {reregister ? "Reregistration complete" : "Registration complete"}
+          </p>
           <h1 className="mt-3 text-3xl font-bold tracking-tight text-brand-navy">
-            Welcome to HIMTI.
+            {reregister ? "Membership renewed." : "Welcome to HIMTI."}
           </h1>
           <p className="mt-4 text-sm leading-6 text-brand-slate">
-            Your registration is complete. You can now access your member
-            information and community contacts.
+            {reregister
+              ? "Your membership details have been submitted for the new pengurus period."
+              : "Your registration is complete. You can now access your member information and community contacts."}
           </p>
           <Button asChild className="mt-8">
             <Link to="/dashboard">Open dashboard</Link>
@@ -604,30 +658,42 @@ export default function RegisterPage() {
             <span className="grid size-8 shrink-0 place-items-center overflow-hidden rounded-lg bg-brand-navy p-1">
               <img src="/himti-icon.svg" alt="" />
             </span>
-            <span className="truncate">HIMTI registration</span>
+            <span className="truncate">
+              HIMTI {reregister ? "reregistration" : "registration"}
+            </span>
           </Link>
           <Link
-            to="/"
+            to={reregister ? "/dashboard" : "/"}
             className="shrink-0 rounded-lg px-2 py-2 text-xs font-semibold text-brand-blue focus:outline-none focus:ring-2 focus:ring-ring sm:text-sm"
           >
-            Back home
+            {reregister ? "Dashboard" : "Back home"}
           </Link>
         </div>
         <section className="rounded-2xl border border-white/80 bg-white/95 p-4 shadow-[0_24px_70px_-35px_rgba(0,33,79,0.45)] sm:rounded-3xl sm:p-8">
           <div>
-            <p className="section-label">Join the community</p>
-            <h1 className="mt-2 text-2xl font-bold tracking-[-0.04em] text-brand-navy sm:text-3xl">
-              Tell us about yourself
-            </h1>
-            <p className="mt-3 text-sm text-brand-slate">
-              Already have an account?{" "}
-              <Link
-                to="/login"
-                className="font-bold text-brand-blue underline-offset-4 hover:underline focus:outline-none focus:ring-2 focus:ring-ring"
-              >
-                Log in
-              </Link>
+            <p className="section-label">
+              {reregister ? "Renew your membership" : "Join the community"}
             </p>
+            <h1 className="mt-2 text-2xl font-bold tracking-[-0.04em] text-brand-navy sm:text-3xl">
+              {reregister
+                ? "Confirm your member details"
+                : "Tell us about yourself"}
+            </h1>
+            {reregister ? (
+              <p className="mt-3 text-sm text-brand-slate">
+                Review the information prefilled from your current profile.
+              </p>
+            ) : (
+              <p className="mt-3 text-sm text-brand-slate">
+                Already have an account?{" "}
+                <Link
+                  to="/login"
+                  className="font-bold text-brand-blue underline-offset-4 hover:underline focus:outline-none focus:ring-2 focus:ring-ring"
+                >
+                  Log in
+                </Link>
+              </p>
+            )}
             <p className="mt-4 text-sm font-bold text-brand-blue sm:hidden">
               Step {step + 1} of 4{" "}
               <span className="text-brand-slate">· {steps[step]}</span>
@@ -713,6 +779,35 @@ export default function RegisterPage() {
                     onClick={() => changePath("institutionType", "Non-BINUS")}
                   />
                 </div>
+                <label className="mt-5 block text-sm font-semibold text-brand-ink">
+                  <span>Membership period</span>
+                  <input
+                    value={
+                      membershipStatus.isPending
+                        ? "Loading..."
+                        : (membershipPeriod?.label ?? "No active period")
+                    }
+                    readOnly
+                    aria-describedby="membership-period-help"
+                    className="mt-2 h-11 w-full rounded-xl border border-brand-blue/15 bg-slate-100 px-3 text-sm font-medium text-brand-slate outline-none sm:max-w-sm"
+                  />
+                </label>
+                <p
+                  id="membership-period-help"
+                  className="mt-2 text-xs leading-5 text-brand-slate"
+                >
+                  Assigned automatically and cannot be changed here.
+                </p>
+                {membershipStatus.isError && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="mt-3"
+                    onClick={() => void membershipStatus.refetch()}
+                  >
+                    Retry membership period
+                  </Button>
+                )}
               </div>
             )}
             {step === 1 && (
@@ -782,6 +877,10 @@ export default function RegisterPage() {
                   items={[
                     ["User type", data.userType],
                     ["Institution", data.institutionType],
+                    [
+                      "Membership period",
+                      membershipPeriod?.label ?? "Unavailable",
+                    ],
                   ]}
                   onEdit={() => setStep(0)}
                 />
@@ -828,11 +927,13 @@ export default function RegisterPage() {
                 type="button"
                 className="min-h-11 flex-1 sm:ml-auto sm:flex-none"
                 onClick={submit}
-                disabled={completeProfile.isPending}
+                disabled={saveProfile.isPending}
               >
-                {completeProfile.isPending
+                {saveProfile.isPending
                   ? "Saving..."
-                  : "Submit registration"}{" "}
+                  : reregister
+                    ? "Submit reregistration"
+                    : "Submit registration"}{" "}
                 <Send className="ml-2 size-4" />
               </Button>
             )}

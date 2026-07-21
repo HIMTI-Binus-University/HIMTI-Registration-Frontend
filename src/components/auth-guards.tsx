@@ -2,6 +2,7 @@ import axios from "axios";
 import { Navigate, useLocation } from "react-router-dom";
 import type { ReactNode } from "react";
 import { useCurrentUser } from "@/api/users/queries";
+import { useMembershipStatus } from "@/api/membership/queries";
 import { Button } from "@/components/ui/button";
 
 function Loading() {
@@ -68,5 +69,20 @@ export function RequireIncompleteRegistration({
     <Navigate to="/dashboard" replace />
   ) : (
     children
+  );
+}
+
+export function RequireAvailableReregistration({
+  children,
+}: {
+  children: ReactNode;
+}) {
+  const query = useMembershipStatus();
+  if (query.isPending) return <Loading />;
+  if (query.isError) return <LoadError retry={() => void query.refetch()} />;
+  return query.data.availablePeriod ? (
+    children
+  ) : (
+    <Navigate to="/dashboard" replace />
   );
 }

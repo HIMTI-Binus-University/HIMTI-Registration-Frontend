@@ -9,6 +9,7 @@ import { Navigate } from "react-router-dom";
 import type { AppRoute } from "@/types/common";
 import {
   RequireAuth,
+  RequireAvailableReregistration,
   RequireCompletedRegistration,
   RequireIncompleteRegistration,
 } from "@/components/auth-guards";
@@ -24,6 +25,18 @@ export const routes: AppRoute[] = [
         <RequireIncompleteRegistration>
           <RegisterPage />
         </RequireIncompleteRegistration>
+      </RequireAuth>
+    ),
+  },
+  {
+    path: "/reregister",
+    element: (
+      <RequireAuth>
+        <RequireCompletedRegistration>
+          <RequireAvailableReregistration>
+            <RegisterPage reregister />
+          </RequireAvailableReregistration>
+        </RequireCompletedRegistration>
       </RequireAuth>
     ),
   },

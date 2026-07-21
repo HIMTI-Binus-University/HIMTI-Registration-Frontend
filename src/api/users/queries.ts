@@ -48,6 +48,8 @@ export type UserProfile = {
   roles: string[];
   permissions: string[];
   registrationCompleted: boolean;
+  membershipPeriod: { id: string; label: string } | null;
+  reregistrationPeriod: { id: string; label: string } | null;
 };
 
 export type UserRegistrationOptions = {

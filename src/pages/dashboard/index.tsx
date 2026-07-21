@@ -1,7 +1,8 @@
 import {
+  BookOpen,
   CalendarDays,
+  ExternalLink,
   LogOut,
-  MessageCircle,
   Pencil,
   Ticket,
 } from "lucide-react";
@@ -12,11 +13,17 @@ import { Button } from "@/components/ui/button";
 import { gsap, motionEase, useGSAP } from "@/lib/motion";
 import { usePublishedEvents } from "@/api/events/queries";
 import { useCurrentUser } from "@/api/users/queries";
+import {
+  useMembershipResources,
+  useMembershipStatus,
+} from "@/api/membership/queries";
 import { signOut } from "@/api/auth";
 
 export default function DashboardPage() {
   const profileQuery = useCurrentUser();
   const eventsQuery = usePublishedEvents();
+  const membershipStatus = useMembershipStatus();
+  const resourcesQuery = useMembershipResources();
   const user = profileQuery.data;
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -170,6 +177,30 @@ export default function DashboardPage() {
           </dl>
         </section>
 
+        {membershipStatus.data?.availablePeriod && (
+          <section
+            data-dashboard-motion
+            aria-labelledby="reregistration-title"
+            className="mt-6 flex flex-col gap-4 rounded-2xl bg-brand-pale p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6"
+          >
+            <div>
+              <h2
+                id="reregistration-title"
+                className="text-lg font-bold text-brand-navy"
+              >
+                Reregistration is open
+              </h2>
+              <p className="mt-1 text-sm leading-6 text-brand-slate">
+                Confirm your details for pengurus period{" "}
+                {membershipStatus.data.availablePeriod.label}.
+              </p>
+            </div>
+            <Button asChild className="min-h-11 shrink-0">
+              <Link to="/reregister">Reregister now</Link>
+            </Button>
+          </section>
+        )}
+
         <section
           data-dashboard-motion
           aria-labelledby="your-events-title"
@@ -251,17 +282,86 @@ export default function DashboardPage() {
 
         <section
           data-dashboard-motion
-          aria-labelledby="support-title"
+          aria-labelledby="resources-title"
           className="mt-10 pb-6"
         >
           <SectionHeading
-            icon={MessageCircle}
-            title="Member support"
-            copy="Community groups and people ready to help."
+            icon={BookOpen}
+            title="Member resources"
+            copy={
+              resourcesQuery.data
+                ? `Resources for pengurus period ${resourcesQuery.data.period.label}.`
+                : "Links and information for your current pengurus period."
+            }
           />
-          <div className="mt-4 rounded-2xl border border-dashed border-brand-blue/20 bg-white p-6 text-sm text-brand-slate">
-            Support resources are not available yet.
-          </div>
+          {resourcesQuery.isPending && (
+            <div
+              role="status"
+              aria-label="Loading member resources"
+              className="mt-4 grid gap-3 sm:grid-cols-2"
+            >
+              {[0, 1].map((item) => (
+                <div
+                  key={item}
+                  className="h-36 animate-pulse rounded-2xl bg-brand-blue/10 motion-reduce:animate-none"
+                />
+              ))}
+            </div>
+          )}
+          {resourcesQuery.isError && (
+            <div className="mt-4 rounded-2xl border border-red-200 bg-white p-6">
+              <p className="text-sm text-red-700">
+                Member resources could not be loaded.
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                className="mt-4"
+                onClick={() => void resourcesQuery.refetch()}
+              >
+                Try again
+              </Button>
+            </div>
+          )}
+          {resourcesQuery.isSuccess &&
+            (resourcesQuery.data.resources.length ? (
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                {resourcesQuery.data.resources.map((resource) => (
+                  <article
+                    key={resource.id}
+                    className="flex min-h-40 flex-col rounded-2xl border border-brand-blue/10 bg-white p-5"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <h3 className="font-bold text-brand-navy">
+                        {resource.title}
+                      </h3>
+                      {resource.region && (
+                        <span className="shrink-0 rounded-full bg-brand-pale px-2.5 py-1 text-xs font-semibold text-brand-blue">
+                          {resource.region.shortName ?? resource.region.name}
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-2 flex-1 text-sm leading-6 text-brand-slate">
+                      {resource.description}
+                    </p>
+                    {resource.url && (
+                      <a
+                        href={resource.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-4 inline-flex min-h-11 items-center gap-2 self-start rounded-lg font-bold text-brand-blue underline-offset-4 hover:underline focus:outline-none focus:ring-2 focus:ring-ring"
+                      >
+                        Open resource <ExternalLink className="size-4" />
+                      </a>
+                    )}
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-4 rounded-2xl border border-dashed border-brand-blue/20 bg-white p-6 text-sm text-brand-slate">
+                No member resources have been published for this period yet.
+              </p>
+            ))}
         </section>
       </div>
     </main>

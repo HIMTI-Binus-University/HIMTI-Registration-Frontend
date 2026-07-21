@@ -7,5 +7,8 @@ export const apiPaths = {
   sendUserEmailVerification: "/user/me/binus-email/send-verification",
   verifyUserEmail: "/user/binus-email/verify",
   userRegistrationOptions: "/user/registration-options",
+  membershipStatus: "/membership/status",
+  membershipResources: "/membership/resources",
+  reregisterCurrentUser: "/user/me/reregister",
   publishedEvents: "/event/published",
 } as const;

@@ -5,12 +5,20 @@ import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import type React from "react";
 import App from "@/App";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { useCurrentUser } from "@/api/users/queries";
+import {
+  useCurrentUser,
+  useUserRegistrationOptions,
+} from "@/api/users/queries";
+import {
+  useMembershipResources,
+  useMembershipStatus,
+  useReregisterCurrentUser,
+} from "@/api/membership/queries";
 import { signOut, useSession } from "@/api/auth";
 
 vi.mock("@/api/users/queries", () => ({
   useCurrentUser: vi.fn(),
-  useUserRegistrationOptions: () => ({ data: undefined }),
+  useUserRegistrationOptions: vi.fn(),
   useCompleteCurrentUserProfile: () => ({
     isPending: false,
     mutate: vi.fn(),
@@ -20,6 +28,12 @@ vi.mock("@/api/users/queries", () => ({
     isPending: false,
     mutate: vi.fn(),
   }),
+}));
+
+vi.mock("@/api/membership/queries", () => ({
+  useMembershipStatus: vi.fn(),
+  useMembershipResources: vi.fn(),
+  useReregisterCurrentUser: vi.fn(),
 }));
 
 vi.mock("@/api/events/queries", () => ({
@@ -43,6 +57,12 @@ const profile = {
   email: "member@example.com",
   image: null,
   status: "ACTIVE",
+  memberType: null,
+  institutionType: null,
+  universityName: null,
+  studyProgramName: null,
+  department: null,
+  affiliation: null,
   outlookEmail: null,
   outlookEmailVerified: false,
   nim: null,
@@ -64,6 +84,8 @@ const profile = {
   roles: [],
   permissions: [],
   registrationCompleted: false,
+  membershipPeriod: null,
+  reregistrationPeriod: null,
 };
 
 function mockProfile(overrides = {}) {
@@ -79,6 +101,33 @@ function mockProfile(overrides = {}) {
 afterEach(cleanup);
 beforeEach(() => {
   mockProfile();
+  vi.mocked(useUserRegistrationOptions).mockReturnValue({
+    data: undefined,
+  } as never);
+  vi.mocked(useMembershipStatus).mockReturnValue({
+    data: {
+      currentPeriod: { id: "period-1", label: "2025/2026" },
+      availablePeriod: null,
+      activePeriod: { id: "period-1", label: "2025/2026" },
+    },
+    isPending: false,
+    isError: false,
+    isSuccess: true,
+  } as never);
+  vi.mocked(useMembershipResources).mockReturnValue({
+    data: {
+      period: { id: "period-1", label: "2025/2026" },
+      resources: [],
+    },
+    isPending: false,
+    isError: false,
+    isSuccess: true,
+    refetch: vi.fn(),
+  } as never);
+  vi.mocked(useReregisterCurrentUser).mockReturnValue({
+    isPending: false,
+    mutate: vi.fn(),
+  } as never);
   vi.mocked(useSession).mockReturnValue({
     data: null,
     isPending: false,
@@ -135,6 +184,10 @@ test("renders the registration wizard and advances through the first step", asyn
     "href",
     "/login",
   );
+  expect(screen.getByLabelText(/membership period/i)).toHaveValue("2025/2026");
+  expect(screen.getByLabelText(/membership period/i)).toHaveAttribute(
+    "readonly",
+  );
   expect(screen.getAllByText(/Step 1 of 4/)).not.toHaveLength(0);
   expect(
     screen.getByLabelText(/registration progress, step 1 of 4/i),
@@ -160,7 +213,7 @@ test("renders the member dashboard sections", () => {
   ).toBeInTheDocument();
   expect(screen.getByRole("heading", { name: "Events" })).toBeInTheDocument();
   expect(
-    screen.getByRole("heading", { name: "Member support" }),
+    screen.getByRole("heading", { name: "Member resources" }),
   ).toBeInTheDocument();
   expect(
     screen.getByRole("link", { name: /edit profile/i }),
@@ -173,8 +226,169 @@ test("renders the member dashboard sections", () => {
     screen.getByText(/you are not registered for any events yet/i),
   ).toBeInTheDocument();
   expect(
-    screen.getByText(/support resources are not available yet/i),
+    screen.getByText(/no member resources have been published/i),
   ).toBeInTheDocument();
+});
+
+test("renders all current-period resources and the reregistration prompt", () => {
+  mockProfile({
+    registrationCompleted: true,
+    registrationCompletedAt: "2026-07-21T00:00:00.000Z",
+  });
+  vi.mocked(useMembershipStatus).mockReturnValue({
+    data: {
+      currentPeriod: { id: "period-1", label: "2025/2026" },
+      availablePeriod: { id: "period-2", label: "2026/2027" },
+      activePeriod: { id: "period-2", label: "2026/2027" },
+    },
+    isPending: false,
+    isError: false,
+    isSuccess: true,
+  } as never);
+  vi.mocked(useMembershipResources).mockReturnValue({
+    data: {
+      period: { id: "period-1", label: "2025/2026" },
+      resources: [
+        {
+          id: "resource-1",
+          periodId: "period-1",
+          title: "Alam Sutera member group",
+          description: "Connect with members in your region.",
+          url: "https://example.com/group",
+          position: 1,
+          region: {
+            id: "region-1",
+            name: "Alam Sutera",
+            shortName: "ALSUT",
+          },
+        },
+        {
+          id: "resource-2",
+          periodId: "period-1",
+          title: "Member handbook",
+          description: "Read the current member handbook.",
+          url: null,
+          position: 2,
+          region: {
+            id: "region-2",
+            name: "Kemanggisan",
+            shortName: "KMG",
+          },
+        },
+      ],
+    },
+    isPending: false,
+    isError: false,
+    isSuccess: true,
+    refetch: vi.fn(),
+  } as never);
+
+  renderApp(
+    <MemoryRouter initialEntries={["/dashboard"]}>
+      <App />
+    </MemoryRouter>,
+  );
+
+  expect(screen.getByText("Alam Sutera member group")).toBeInTheDocument();
+  expect(screen.getByText("Member handbook")).toBeInTheDocument();
+  expect(screen.getByText("ALSUT")).toBeInTheDocument();
+  expect(screen.getByText("KMG")).toBeInTheDocument();
+  expect(screen.getAllByRole("link", { name: /open resource/i })).toHaveLength(
+    1,
+  );
+  expect(screen.getByRole("link", { name: /reregister now/i })).toHaveAttribute(
+    "href",
+    "/reregister",
+  );
+  expect(screen.getByText(/pengurus period 2026\/2027/i)).toBeInTheDocument();
+});
+
+test("prefills and submits the reregistration flow", async () => {
+  const user = userEvent.setup();
+  const mutate = vi.fn();
+  mockProfile({
+    registrationCompleted: true,
+    registrationCompletedAt: "2026-07-21T00:00:00.000Z",
+    memberType: "STUDENT",
+    institutionType: "BINUS",
+    phoneNumber: "08123456789",
+    lineId: "himti-member",
+    outlookEmail: "member@binus.ac.id",
+    outlookEmailVerified: true,
+    nim: "2600000000",
+    graduateBatch: "28",
+    universityId: "binus-id",
+    studyProgramId: "cs-id",
+    regionId: "alam-sutera-id",
+    university: { id: "binus-id", name: "BINUS University" },
+    studyProgram: { id: "cs-id", name: "Computer Science" },
+    region: { id: "alam-sutera-id", name: "Alam Sutera" },
+  });
+  vi.mocked(useMembershipStatus).mockReturnValue({
+    data: {
+      currentPeriod: { id: "period-1", label: "2025/2026" },
+      availablePeriod: { id: "period-2", label: "2026/2027" },
+      activePeriod: { id: "period-2", label: "2026/2027" },
+    },
+    isPending: false,
+    isError: false,
+    isSuccess: true,
+  } as never);
+  vi.mocked(useUserRegistrationOptions).mockReturnValue({
+    data: {
+      universities: [{ id: "binus-id", name: "BINUS University" }],
+      studyPrograms: [{ id: "cs-id", name: "Computer Science" }],
+      binusRegions: [{ id: "alam-sutera-id", name: "Alam Sutera" }],
+    },
+  } as never);
+  vi.mocked(useReregisterCurrentUser).mockReturnValue({
+    isPending: false,
+    mutate,
+  } as never);
+
+  renderApp(
+    <MemoryRouter initialEntries={["/reregister"]}>
+      <App />
+    </MemoryRouter>,
+  );
+
+  expect(
+    screen.getByRole("heading", { name: /confirm your member details/i }),
+  ).toBeInTheDocument();
+  expect(screen.getByLabelText(/membership period/i)).toHaveValue("2026/2027");
+  expect(screen.getByLabelText(/membership period/i)).toHaveAttribute(
+    "readonly",
+  );
+
+  await user.click(screen.getByRole("button", { name: /continue/i }));
+  expect(screen.getByLabelText(/full name/i)).toHaveValue("HIMTI Member");
+  await user.click(screen.getByRole("button", { name: /continue/i }));
+  expect(screen.getByText("Verified")).toBeInTheDocument();
+  expect(screen.getByLabelText(/binusian batch/i)).toHaveValue("28");
+  expect(
+    screen.queryByRole("button", { name: /send verification/i }),
+  ).toBeNull();
+  await user.click(screen.getByRole("button", { name: /continue/i }));
+  await user.click(
+    screen.getByRole("button", { name: /submit reregistration/i }),
+  );
+
+  expect(mutate).toHaveBeenCalledWith(
+    {
+      memberType: "STUDENT",
+      institutionType: "BINUS",
+      name: "HIMTI Member",
+      phoneNumber: "08123456789",
+      lineId: "himti-member",
+      universityId: "binus-id",
+      regionId: "alam-sutera-id",
+      outlookEmail: "member@binus.ac.id",
+      studyProgramId: "cs-id",
+      nim: "2600000000",
+      graduateBatch: "28",
+    },
+    expect.any(Object),
+  );
 });
 
 test("redirects authenticated users from root to the dashboard", async () => {

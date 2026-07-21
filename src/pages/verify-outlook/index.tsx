@@ -71,7 +71,7 @@ export default function VerifyOutlookPage() {
             registration and request a new link.
           </p>
           <Button asChild className="mt-7">
-            <Link to="/register">Return to registration</Link>
+            <Link to="/reregister">Return to registration</Link>
           </Button>
         </section>
       </AuthLayout>
@@ -89,7 +89,7 @@ export default function VerifyOutlookPage() {
           application.
         </p>
         <Button asChild className="mt-7">
-          <Link to="/register">Return to registration</Link>
+          <Link to="/reregister">Return to registration</Link>
         </Button>
       </section>
     </AuthLayout>

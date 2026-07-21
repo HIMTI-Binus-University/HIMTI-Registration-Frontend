@@ -33,8 +33,10 @@ export function buildRegistrationPayload(
   };
 
   if (data.institutionType === "BINUS") {
-    const binusUniversityId = options.universities.find((university) =>
-      university.name.toLowerCase().includes("binus"),
+    const binusUniversityId = options.universities.find(
+      (university) =>
+        university.shortName?.toUpperCase() === "BINUS" ||
+        university.name.toUpperCase() === "BINUS UNIVERSITY",
     )?.id;
     const binus = {
       ...common,
@@ -67,3 +69,5 @@ export function buildRegistrationPayload(
     return { ...common, universityName, department: data.department };
   return { ...common, universityName, affiliation: data.affiliation };
 }
+
+export type RegistrationPayload = ReturnType<typeof buildRegistrationPayload>;
