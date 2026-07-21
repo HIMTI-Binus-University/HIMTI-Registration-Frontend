@@ -4,15 +4,15 @@ import { useState } from "react";
 import type { FormEvent } from "react";
 import { Link } from "react-router-dom";
 import {
-  useProfile,
-  useSendVerification,
-  useUpdateProfile,
-} from "@/api/registration";
-import type { Profile } from "@/api/registration";
+  useCurrentUser,
+  useSendUserEmailVerification,
+  useUpdateCurrentUserProfile,
+} from "@/api/users/queries";
+import type { UserProfile } from "@/api/users/queries";
 import { Button } from "@/components/ui/button";
 
 export default function ProfileEditPage() {
-  const query = useProfile();
+  const query = useCurrentUser();
   if (!query.data) return null;
   return <ProfileEditForm profile={query.data} refetch={query.refetch} />;
 }
@@ -21,11 +21,11 @@ function ProfileEditForm({
   profile,
   refetch,
 }: {
-  profile: Profile;
-  refetch: () => Promise<unknown>;
+  profile: UserProfile;
+  refetch: () => Promise<{ isError: boolean }>;
 }) {
-  const updateProfile = useUpdateProfile();
-  const sendVerification = useSendVerification();
+  const updateProfile = useUpdateCurrentUserProfile();
+  const sendVerification = useSendUserEmailVerification();
   const [name, setName] = useState(profile.name);
   const [phoneNumber, setPhoneNumber] = useState(profile.phoneNumber ?? "");
   const [lineId, setLineId] = useState(profile.lineId ?? "");
@@ -33,10 +33,11 @@ function ProfileEditForm({
   const [verificationSent, setVerificationSent] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
+  const [verificationError, setVerificationError] = useState("");
 
   const emailVerified = Boolean(
     profile.outlookEmailVerified &&
-      profile.outlookEmail?.toLowerCase() === binusEmail.toLowerCase(),
+    profile.outlookEmail?.toLowerCase() === binusEmail.toLowerCase(),
   );
 
   const save = (event: FormEvent) => {
@@ -135,6 +136,7 @@ function ProfileEditForm({
                 onChange={(event) => {
                   setBinusEmail(event.target.value);
                   setVerificationSent(false);
+                  setVerificationError("");
                 }}
                 className="h-11 min-w-0 flex-1 rounded-xl border border-brand-blue/15 bg-white px-3 text-sm outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/15"
               />
@@ -143,11 +145,16 @@ function ProfileEditForm({
                   type="button"
                   variant="outline"
                   disabled={!binusEmail || sendVerification.isPending}
-                  onClick={() =>
+                  onClick={() => {
+                    setVerificationError("");
                     sendVerification.mutate(binusEmail, {
                       onSuccess: () => setVerificationSent(true),
-                    })
-                  }
+                      onError: () =>
+                        setVerificationError(
+                          "Verification could not be sent. Please try again.",
+                        ),
+                    });
+                  }}
                 >
                   <Send className="mr-2 size-4" /> Send verification
                 </Button>
@@ -159,12 +166,28 @@ function ProfileEditForm({
                 <button
                   type="button"
                   className="font-bold text-brand-blue underline"
-                  onClick={() => void refetch()}
+                  onClick={() => {
+                    setVerificationError("");
+                    void refetch().then((result) => {
+                      if (result.isError)
+                        setVerificationError(
+                          "Verification status could not be checked. Please try again.",
+                        );
+                    });
+                  }}
                 >
                   check status
                 </button>
                 .
               </div>
+            )}
+            {verificationError && (
+              <p
+                role="alert"
+                className="mt-3 text-sm font-semibold text-red-700"
+              >
+                {verificationError}
+              </p>
             )}
           </section>
 

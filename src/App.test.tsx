@@ -5,15 +5,24 @@ import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import type React from "react";
 import App from "@/App";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { useProfile } from "@/api/registration";
+import { useCurrentUser } from "@/api/users/queries";
 import { signOut, useSession } from "@/api/auth";
 
-vi.mock("@/api/registration", () => ({
-  useProfile: vi.fn(),
-  useRegistrationOptions: () => ({ data: undefined }),
-  useCompleteProfile: () => ({ isPending: false, mutate: vi.fn() }),
-  useUpdateProfile: () => ({ isPending: false, mutate: vi.fn() }),
-  useSendVerification: () => ({ isPending: false, mutate: vi.fn() }),
+vi.mock("@/api/users/queries", () => ({
+  useCurrentUser: vi.fn(),
+  useUserRegistrationOptions: () => ({ data: undefined }),
+  useCompleteCurrentUserProfile: () => ({
+    isPending: false,
+    mutate: vi.fn(),
+  }),
+  useUpdateCurrentUserProfile: () => ({ isPending: false, mutate: vi.fn() }),
+  useSendUserEmailVerification: () => ({
+    isPending: false,
+    mutate: vi.fn(),
+  }),
+}));
+
+vi.mock("@/api/events/queries", () => ({
   usePublishedEvents: () => ({
     data: [],
     isPending: false,
@@ -58,7 +67,7 @@ const profile = {
 };
 
 function mockProfile(overrides = {}) {
-  vi.mocked(useProfile).mockReturnValue({
+  vi.mocked(useCurrentUser).mockReturnValue({
     data: { ...profile, ...overrides },
     isPending: false,
     isError: false,
@@ -73,6 +82,7 @@ beforeEach(() => {
   vi.mocked(useSession).mockReturnValue({
     data: null,
     isPending: false,
+    isError: false,
   } as never);
 });
 
@@ -218,7 +228,9 @@ test("profile editing excludes registration and academic fields", () => {
     screen.getByRole("heading", { name: /edit contact information/i }),
   ).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Student" })).toBeNull();
-  expect(screen.queryByLabelText(/university|study program|region|nim/i)).toBeNull();
+  expect(
+    screen.queryByLabelText(/university|study program|region|nim/i),
+  ).toBeNull();
   expect(screen.getByLabelText(/google email/i)).toBeDisabled();
 });
 
@@ -279,10 +291,11 @@ test("routes incomplete Google sign-ins to registration", async () => {
 });
 
 test("sends unauthenticated users to Google login", () => {
-  vi.mocked(useProfile).mockReturnValue({
+  vi.mocked(useCurrentUser).mockReturnValue({
     isPending: false,
     isError: true,
     isSuccess: false,
+    error: { isAxiosError: true, response: { status: 401 } },
   } as never);
   renderApp(
     <MemoryRouter initialEntries={["/register"]}>
@@ -291,6 +304,37 @@ test("sends unauthenticated users to Google login", () => {
   );
 
   expect(screen.getByText("Continue with Google")).toBeInTheDocument();
+});
+
+test("shows a retryable account error instead of logging in on server failure", () => {
+  vi.mocked(useCurrentUser).mockReturnValue({
+    isPending: false,
+    isError: true,
+    isSuccess: false,
+    error: { isAxiosError: true, response: { status: 500 } },
+    refetch: vi.fn(),
+  } as never);
+  renderApp(
+    <MemoryRouter initialEntries={["/register"]}>
+      <App />
+    </MemoryRouter>,
+  );
+
+  expect(screen.getByText(/account could not be loaded/i)).toBeInTheDocument();
+  expect(
+    screen.getByRole("button", { name: /try again/i }),
+  ).toBeInTheDocument();
+  expect(screen.queryByText("Continue with Google")).toBeNull();
+});
+
+test("does not trust a successful verification status without a token", () => {
+  renderApp(
+    <MemoryRouter initialEntries={["/verify-outlook?status=success"]}>
+      <App />
+    </MemoryRouter>,
+  );
+
+  expect(screen.getByText(/link unavailable/i)).toBeInTheDocument();
 });
 
 test("shows BINUS verification and clears institution details when the path changes", async () => {
@@ -307,10 +351,8 @@ test("shows BINUS verification and clears institution details when the path chan
   await user.clear(screen.getByLabelText(/full name/i));
   await user.type(screen.getByLabelText(/full name/i), "HIMTI Member");
   await user.type(screen.getByLabelText(/phone number/i), "08123456789");
-  await user.type(
-    screen.getByLabelText(/personal email/i),
-    "member@example.com",
-  );
+  expect(screen.getByLabelText(/google email/i)).toHaveAttribute("readonly");
+  await user.type(screen.getByLabelText(/line id/i), "himti-member");
   await user.click(screen.getByRole("button", { name: /continue/i }));
 
   expect(screen.getByLabelText(/binus major/i).tagName).toBe("SELECT");

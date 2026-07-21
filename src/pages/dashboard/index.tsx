@@ -10,11 +10,12 @@ import { Link, useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { gsap, motionEase, useGSAP } from "@/lib/motion";
-import { useProfile, usePublishedEvents } from "@/api/registration";
+import { usePublishedEvents } from "@/api/events/queries";
+import { useCurrentUser } from "@/api/users/queries";
 import { signOut } from "@/api/auth";
 
 export default function DashboardPage() {
-  const profileQuery = useProfile();
+  const profileQuery = useCurrentUser();
   const eventsQuery = usePublishedEvents();
   const user = profileQuery.data;
   const navigate = useNavigate();
@@ -90,6 +91,7 @@ export default function DashboardPage() {
             </span>
           </Link>
           <Button
+            aria-label="Logout"
             type="button"
             variant="outline"
             className="size-11 border-red-300 px-0 text-red-700 hover:border-red-400 hover:bg-red-50 hover:text-red-800 focus:ring-red-500 sm:h-auto sm:w-auto sm:px-5"
@@ -124,7 +126,7 @@ export default function DashboardPage() {
               </span>
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-brand-sky">
-                  Active HIMTI member
+                  {user.status}
                 </p>
                 <h1
                   id="profile-title"
@@ -149,7 +151,9 @@ export default function DashboardPage() {
           <dl className="relative mt-6 grid gap-4 border-t border-white/15 pt-5 sm:grid-cols-3">
             <ProfileDetail
               label="Institution"
-              value={user.university?.name ?? "Not provided"}
+              value={
+                user.university?.name ?? user.universityName ?? "Not provided"
+              }
             />
             <ProfileDetail
               label="Region"
@@ -157,7 +161,11 @@ export default function DashboardPage() {
             />
             <ProfileDetail
               label="Study program"
-              value={user.studyProgram?.name ?? "Not provided"}
+              value={
+                user.studyProgram?.name ??
+                user.studyProgramName ??
+                "Not provided"
+              }
             />
           </dl>
         </section>

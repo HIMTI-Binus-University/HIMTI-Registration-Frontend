@@ -7,35 +7,22 @@ import {
   Send,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
-  useCompleteProfile,
-  useProfile,
-  useRegistrationOptions,
-  useSendVerification,
-} from "@/api/registration";
+  useCompleteCurrentUserProfile,
+  useCurrentUser,
+  useSendUserEmailVerification,
+  useUserRegistrationOptions,
+} from "@/api/users/queries";
+import type { UserRegistrationOptions } from "@/api/users/queries";
+import {
+  buildRegistrationPayload,
+  type InstitutionType,
+  type RegistrationData,
+  type UserType,
+} from "@/pages/register/payload";
 import axios from "axios";
-
-type UserType = "Student" | "Lecturer" | "Other";
-type InstitutionType = "BINUS" | "Non-BINUS";
-type RegistrationData = {
-  userType: UserType | "";
-  institutionType: InstitutionType | "";
-  name: string;
-  phone: string;
-  personalEmail: string;
-  lineId: string;
-  nim: string;
-  batch: string;
-  binusEmail: string;
-  region: string;
-  major: string;
-  university: string;
-  institution: string;
-  department: string;
-  affiliation: string;
-};
 
 const initialData: RegistrationData = {
   userType: "",
@@ -76,6 +63,7 @@ function Field({
   required = true,
   type = "text",
   placeholder,
+  readOnly = false,
 }: {
   label: string;
   name: keyof RegistrationData;
@@ -84,6 +72,7 @@ function Field({
   required?: boolean;
   type?: string;
   placeholder?: string;
+  readOnly?: boolean;
 }) {
   return (
     <label className="block text-sm font-semibold text-brand-ink">
@@ -100,9 +89,10 @@ function Field({
         type={type}
         value={value}
         required={required}
+        readOnly={readOnly}
         placeholder={placeholder}
         onChange={(event) => onChange(name, event.target.value)}
-        className="mt-2 h-11 w-full rounded-xl border border-brand-blue/15 bg-white px-3 text-sm font-medium text-brand-ink outline-none transition focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/15"
+        className="mt-2 h-11 w-full rounded-xl border border-brand-blue/15 bg-white px-3 text-sm font-medium text-brand-ink outline-none transition focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/15 read-only:bg-slate-100 read-only:text-brand-slate"
       />
     </label>
   );
@@ -182,7 +172,6 @@ function Choice({
 }
 
 export default function RegisterPage() {
-  const isEditing = useLocation().pathname === "/profile/edit";
   const [step, setStep] = useState(0);
   const [data, setData] = useState(initialData);
   const [errors, setErrors] = useState<string[]>([]);
@@ -192,10 +181,10 @@ export default function RegisterPage() {
   const [verificationSent, setVerificationSent] = useState(false);
   const hydratedProfile = useRef(false);
   const firstError = useRef<HTMLDivElement>(null);
-  const profile = useProfile();
-  const options = useRegistrationOptions();
-  const completeProfile = useCompleteProfile();
-  const sendVerification = useSendVerification();
+  const profile = useCurrentUser();
+  const options = useUserRegistrationOptions();
+  const completeProfile = useCompleteCurrentUserProfile();
+  const sendVerification = useSendUserEmailVerification();
 
   useEffect(() => {
     const user = profile.data;
@@ -475,7 +464,7 @@ export default function RegisterPage() {
           ? [
               ["name", "Enter your full name"],
               ["phone", "Enter your phone number"],
-              ["personalEmail", "Enter your personal email"],
+              ["personalEmail", "Your Google email is unavailable"],
             ]
           : [];
     const missing = required
@@ -546,43 +535,40 @@ export default function RegisterPage() {
   };
   const submit = () => {
     setErrors([]);
-    completeProfile.mutate(
-      {
-        name: data.name,
-        nim: data.nim || undefined,
-        universityId:
-          options.data?.universities.find(
-            (item) => item.name === "BINUS University",
-          )?.id ?? "",
-        studyProgramId: data.major,
-        regionId: data.region || undefined,
-        graduateBatch: data.batch,
-        phoneNumber: data.phone,
-        lineId: data.lineId,
-        outlookEmail: data.binusEmail || undefined,
+    if (!options.data) {
+      setErrors(["Registration options could not be loaded"]);
+      return;
+    }
+    if (
+      data.institutionType === "BINUS" &&
+      !options.data.universities.some((university) =>
+        university.name.toLowerCase().includes("binus"),
+      )
+    ) {
+      setErrors(["BINUS University is unavailable"]);
+      return;
+    }
+    completeProfile.mutate(buildRegistrationPayload(data, options.data), {
+      onSuccess: () => setSubmitted(true),
+      onError: (error) => {
+        const body = axios.isAxiosError(error) ? error.response?.data : null;
+        const registrationError = body?.errors?.registration;
+        const fieldErrors =
+          body?.errors && typeof body.errors === "object"
+            ? Object.values(body.errors).flatMap((value) =>
+                typeof value === "object" && value && "_errors" in value
+                  ? ((value as { _errors?: string[] })._errors ?? [])
+                  : [],
+              )
+            : [];
+        setErrors([
+          registrationError ||
+            fieldErrors[0] ||
+            body?.msg ||
+            "Registration could not be saved",
+        ]);
       },
-      {
-        onSuccess: () => setSubmitted(true),
-        onError: (error) => {
-          const body = axios.isAxiosError(error) ? error.response?.data : null;
-          const registrationError = body?.errors?.registration;
-          const fieldErrors =
-            body?.errors && typeof body.errors === "object"
-              ? Object.values(body.errors).flatMap((value) =>
-                  typeof value === "object" && value && "_errors" in value
-                    ? ((value as { _errors?: string[] })._errors ?? [])
-                    : [],
-                )
-              : [];
-          setErrors([
-            registrationError ||
-              fieldErrors[0] ||
-              body?.msg ||
-              "Registration could not be saved",
-          ]);
-        },
-      },
-    );
+    });
   };
 
   if (submitted)
@@ -592,16 +578,13 @@ export default function RegisterPage() {
           <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-brand-pale text-brand-blue">
             <Send />
           </span>
-          <p className="section-label mt-6">
-            {isEditing ? "Profile updated" : "Registration complete"}
-          </p>
+          <p className="section-label mt-6">Registration complete</p>
           <h1 className="mt-3 text-3xl font-bold tracking-tight text-brand-navy">
-            {isEditing ? "Your changes are saved." : "Welcome to HIMTI."}
+            Welcome to HIMTI.
           </h1>
           <p className="mt-4 text-sm leading-6 text-brand-slate">
-            {isEditing
-              ? "Your member profile now reflects your latest information."
-              : "Your registration is complete. You can now access your member information and community contacts."}
+            Your registration is complete. You can now access your member
+            information and community contacts.
           </p>
           <Button asChild className="mt-8">
             <Link to="/dashboard">Open dashboard</Link>
@@ -621,9 +604,7 @@ export default function RegisterPage() {
             <span className="grid size-8 shrink-0 place-items-center overflow-hidden rounded-lg bg-brand-navy p-1">
               <img src="/himti-icon.svg" alt="" />
             </span>
-            <span className="truncate">
-              {isEditing ? "Edit profile" : "HIMTI registration"}
-            </span>
+            <span className="truncate">HIMTI registration</span>
           </Link>
           <Link
             to="/"
@@ -634,23 +615,19 @@ export default function RegisterPage() {
         </div>
         <section className="rounded-2xl border border-white/80 bg-white/95 p-4 shadow-[0_24px_70px_-35px_rgba(0,33,79,0.45)] sm:rounded-3xl sm:p-8">
           <div>
-            <p className="section-label">
-              {isEditing ? "Member profile" : "Join the community"}
-            </p>
+            <p className="section-label">Join the community</p>
             <h1 className="mt-2 text-2xl font-bold tracking-[-0.04em] text-brand-navy sm:text-3xl">
-              {isEditing ? "Update your information" : "Tell us about yourself"}
+              Tell us about yourself
             </h1>
-            {!isEditing && (
-              <p className="mt-3 text-sm text-brand-slate">
-                Already have an account?{" "}
-                <Link
-                  to="/login"
-                  className="font-bold text-brand-blue underline-offset-4 hover:underline focus:outline-none focus:ring-2 focus:ring-ring"
-                >
-                  Log in
-                </Link>
-              </p>
-            )}
+            <p className="mt-3 text-sm text-brand-slate">
+              Already have an account?{" "}
+              <Link
+                to="/login"
+                className="font-bold text-brand-blue underline-offset-4 hover:underline focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                Log in
+              </Link>
+            </p>
             <p className="mt-4 text-sm font-bold text-brand-blue sm:hidden">
               Step {step + 1} of 4{" "}
               <span className="text-brand-slate">· {steps[step]}</span>
@@ -761,18 +738,18 @@ export default function RegisterPage() {
                     type="tel"
                   />
                   <Field
-                    label="Personal email"
+                    label="Google email"
                     name="personalEmail"
                     value={data.personalEmail}
                     onChange={update}
                     type="email"
+                    readOnly
                   />
                   <Field
                     label="LINE ID"
                     name="lineId"
                     value={data.lineId}
                     onChange={update}
-                    required={false}
                   />
                 </div>
               </div>
@@ -813,33 +790,14 @@ export default function RegisterPage() {
                   items={[
                     ["Full name", data.name],
                     ["Phone", data.phone],
-                    ["Personal email", data.personalEmail],
+                    ["Google email", data.personalEmail],
                     ["LINE ID", data.lineId || "Not provided"],
                   ]}
                   onEdit={() => setStep(1)}
                 />
                 <ReviewSection
                   title="Institution"
-                  items={Object.entries(data)
-                    .filter(
-                      ([key, value]) =>
-                        value &&
-                        ![
-                          "userType",
-                          "institutionType",
-                          "name",
-                          "phone",
-                          "personalEmail",
-                          "lineId",
-                        ].includes(key),
-                    )
-                    .map(
-                      ([key, value]) =>
-                        [key.replace(/([A-Z])/g, " $1"), value] as [
-                          string,
-                          string,
-                        ],
-                    )}
+                  items={institutionReviewItems(data, options.data)}
                   onEdit={() => setStep(2)}
                 />
               </div>
@@ -874,9 +832,7 @@ export default function RegisterPage() {
               >
                 {completeProfile.isPending
                   ? "Saving..."
-                  : isEditing
-                    ? "Save changes"
-                    : "Submit registration"}{" "}
+                  : "Submit registration"}{" "}
                 <Send className="ml-2 size-4" />
               </Button>
             )}
@@ -885,6 +841,58 @@ export default function RegisterPage() {
       </div>
     </main>
   );
+}
+
+function institutionReviewItems(
+  data: RegistrationData,
+  options?: UserRegistrationOptions,
+): [string, string][] {
+  const optionName = (
+    items: UserRegistrationOptions["universities"],
+    id: string,
+  ) => items.find((item) => item.id === id)?.name ?? "Unavailable";
+
+  if (data.institutionType === "BINUS") {
+    const items: [string, string][] = [
+      [
+        "University",
+        options?.universities.find((item) =>
+          item.name.toLowerCase().includes("binus"),
+        )?.name ?? "BINUS",
+      ],
+      ["BINUS region", optionName(options?.binusRegions ?? [], data.region)],
+      ["BINUS email", data.binusEmail],
+    ];
+    if (data.userType === "Student")
+      return [
+        ...items,
+        ["NIM", data.nim],
+        ["BINUSian batch", data.batch],
+        ["BINUS major", optionName(options?.studyPrograms ?? [], data.major)],
+      ];
+    return [
+      ...items,
+      data.userType === "Lecturer"
+        ? ["Department / program", data.department]
+        : ["Affiliation / role", data.affiliation],
+    ];
+  }
+
+  if (data.userType === "Student")
+    return [
+      ["University", data.university],
+      ["Student ID / NIM", data.nim],
+      ["Major", data.major],
+    ];
+  if (data.userType === "Lecturer")
+    return [
+      ["University / institution", data.university],
+      ["Department / program", data.department],
+    ];
+  return [
+    ["Institution / organization", data.institution],
+    ["Affiliation / role", data.affiliation],
+  ];
 }
 
 function ReviewSection({
