@@ -7,9 +7,14 @@ import {
   Send,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { useCompleteProfile, useProfile, useRegistrationOptions, useSendVerification } from "@/api/registration";
+import {
+  useCompleteProfile,
+  useProfile,
+  useRegistrationOptions,
+  useSendVerification,
+} from "@/api/registration";
 import axios from "axios";
 
 type UserType = "Student" | "Lecturer" | "Other";
@@ -134,7 +139,9 @@ function SelectField({
         >
           <option value="">Choose one</option>
           {options.map((option) => (
-            <option key={option.value} value={option.value}>{option.label}</option>
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
           ))}
         </select>
         <ChevronDown className="pointer-events-none absolute right-3 top-3 size-5 text-brand-slate" />
@@ -175,6 +182,7 @@ function Choice({
 }
 
 export default function RegisterPage() {
+  const isEditing = useLocation().pathname === "/profile/edit";
   const [step, setStep] = useState(0);
   const [data, setData] = useState(initialData);
   const [errors, setErrors] = useState<string[]>([]);
@@ -188,16 +196,28 @@ export default function RegisterPage() {
   const options = useRegistrationOptions();
   const completeProfile = useCompleteProfile();
   const sendVerification = useSendVerification();
-  const pathLocked = Boolean(profile.data?.registrationCompleted);
 
   useEffect(() => {
     const user = profile.data;
     if (!user) return;
-     if (!hydratedProfile.current) {
-       hydratedProfile.current = true;
-       setData((current) => ({ ...current, name: user.name, personalEmail: user.email, phone: user.phoneNumber ?? "", lineId: user.lineId ?? "", nim: user.nim ?? "", batch: user.graduateBatch ?? "", binusEmail: user.outlookEmail ?? "", region: user.regionId ?? "", major: user.studyProgramId ?? "", university: user.university?.name ?? "", institution: user.university?.name ?? "" }));
-       setEmailVerified(user.outlookEmailVerified);
-     }
+    if (!hydratedProfile.current) {
+      hydratedProfile.current = true;
+      setData((current) => ({
+        ...current,
+        name: user.name,
+        personalEmail: user.email,
+        phone: user.phoneNumber ?? "",
+        lineId: user.lineId ?? "",
+        nim: user.nim ?? "",
+        batch: user.graduateBatch ?? "",
+        binusEmail: user.outlookEmail ?? "",
+        region: user.regionId ?? "",
+        major: user.studyProgramId ?? "",
+        university: user.university?.name ?? "",
+        institution: user.university?.name ?? "",
+      }));
+      setEmailVerified(user.outlookEmailVerified);
+    }
   }, [profile.data]);
 
   useEffect(() => {
@@ -260,7 +280,11 @@ export default function RegisterPage() {
               variant="outline"
               className="mt-4 min-h-11 w-full bg-white sm:w-auto"
               disabled={!data.binusEmail || sendVerification.isPending}
-              onClick={() => sendVerification.mutate(data.binusEmail, { onSuccess: () => setVerificationSent(true) })}
+              onClick={() =>
+                sendVerification.mutate(data.binusEmail, {
+                  onSuccess: () => setVerificationSent(true),
+                })
+              }
             >
               Send verification link
             </Button>
@@ -277,7 +301,19 @@ export default function RegisterPage() {
               <Button
                 type="button"
                 className="mt-4 min-h-11 w-full sm:w-auto"
-                  onClick={() => void profile.refetch().then(({ data: user }) => setEmailVerified(Boolean(user?.outlookEmailVerified && user.outlookEmail?.toLowerCase() === data.binusEmail.toLowerCase())))}
+                onClick={() =>
+                  void profile
+                    .refetch()
+                    .then(({ data: user }) =>
+                      setEmailVerified(
+                        Boolean(
+                          user?.outlookEmailVerified &&
+                          user.outlookEmail?.toLowerCase() ===
+                            data.binusEmail.toLowerCase(),
+                        ),
+                      ),
+                    )
+                }
               >
                 Check verification status
               </Button>
@@ -320,14 +356,20 @@ export default function RegisterPage() {
             label="BINUS region"
             name="region"
             value={data.region}
-            options={(options.data?.binusRegions ?? []).map((item) => ({ value: item.id, label: item.name }))}
+            options={(options.data?.binusRegions ?? []).map((item) => ({
+              value: item.id,
+              label: item.name,
+            }))}
             onChange={update}
           />
           <SelectField
             label="BINUS major"
             name="major"
             value={data.major}
-            options={(options.data?.studyPrograms ?? []).map((item) => ({ value: item.id, label: item.name }))}
+            options={(options.data?.studyPrograms ?? []).map((item) => ({
+              value: item.id,
+              label: item.name,
+            }))}
             onChange={update}
           />
         </div>
@@ -371,7 +413,10 @@ export default function RegisterPage() {
             label="BINUS region"
             name="region"
             value={data.region}
-            options={(options.data?.binusRegions ?? []).map((item) => ({ value: item.id, label: item.name }))}
+            options={(options.data?.binusRegions ?? []).map((item) => ({
+              value: item.id,
+              label: item.name,
+            }))}
             onChange={update}
           />
           <Field
@@ -501,15 +546,43 @@ export default function RegisterPage() {
   };
   const submit = () => {
     setErrors([]);
-     completeProfile.mutate({ name: data.name, nim: data.nim || undefined, universityId: options.data?.universities.find((item) => item.name === "BINUS University")?.id ?? "", studyProgramId: data.major, regionId: data.region || undefined, graduateBatch: data.batch, phoneNumber: data.phone, lineId: data.lineId, outlookEmail: data.binusEmail || undefined }, {
-      onSuccess: () => setSubmitted(true),
-      onError: (error) => {
-        const body = axios.isAxiosError(error) ? error.response?.data : null;
-        const registrationError = body?.errors?.registration;
-        const fieldErrors = body?.errors && typeof body.errors === "object" ? Object.values(body.errors).flatMap((value) => typeof value === "object" && value && "_errors" in value ? (value as { _errors?: string[] })._errors ?? [] : []) : [];
-        setErrors([registrationError || fieldErrors[0] || body?.msg || "Registration could not be saved"]);
+    completeProfile.mutate(
+      {
+        name: data.name,
+        nim: data.nim || undefined,
+        universityId:
+          options.data?.universities.find(
+            (item) => item.name === "BINUS University",
+          )?.id ?? "",
+        studyProgramId: data.major,
+        regionId: data.region || undefined,
+        graduateBatch: data.batch,
+        phoneNumber: data.phone,
+        lineId: data.lineId,
+        outlookEmail: data.binusEmail || undefined,
       },
-    });
+      {
+        onSuccess: () => setSubmitted(true),
+        onError: (error) => {
+          const body = axios.isAxiosError(error) ? error.response?.data : null;
+          const registrationError = body?.errors?.registration;
+          const fieldErrors =
+            body?.errors && typeof body.errors === "object"
+              ? Object.values(body.errors).flatMap((value) =>
+                  typeof value === "object" && value && "_errors" in value
+                    ? ((value as { _errors?: string[] })._errors ?? [])
+                    : [],
+                )
+              : [];
+          setErrors([
+            registrationError ||
+              fieldErrors[0] ||
+              body?.msg ||
+              "Registration could not be saved",
+          ]);
+        },
+      },
+    );
   };
 
   if (submitted)
@@ -519,13 +592,16 @@ export default function RegisterPage() {
           <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-brand-pale text-brand-blue">
             <Send />
           </span>
-          <p className="section-label mt-6">Registration complete</p>
+          <p className="section-label mt-6">
+            {isEditing ? "Profile updated" : "Registration complete"}
+          </p>
           <h1 className="mt-3 text-3xl font-bold tracking-tight text-brand-navy">
-            Welcome to HIMTI.
+            {isEditing ? "Your changes are saved." : "Welcome to HIMTI."}
           </h1>
           <p className="mt-4 text-sm leading-6 text-brand-slate">
-            Your registration is complete. You can now access your member
-            information and community contacts.
+            {isEditing
+              ? "Your member profile now reflects your latest information."
+              : "Your registration is complete. You can now access your member information and community contacts."}
           </p>
           <Button asChild className="mt-8">
             <Link to="/dashboard">Open dashboard</Link>
@@ -545,7 +621,9 @@ export default function RegisterPage() {
             <span className="grid size-8 shrink-0 place-items-center overflow-hidden rounded-lg bg-brand-navy p-1">
               <img src="/himti-icon.svg" alt="" />
             </span>
-            <span className="truncate">HIMTI registration</span>
+            <span className="truncate">
+              {isEditing ? "Edit profile" : "HIMTI registration"}
+            </span>
           </Link>
           <Link
             to="/"
@@ -556,16 +634,23 @@ export default function RegisterPage() {
         </div>
         <section className="rounded-2xl border border-white/80 bg-white/95 p-4 shadow-[0_24px_70px_-35px_rgba(0,33,79,0.45)] sm:rounded-3xl sm:p-8">
           <div>
-            <p className="section-label">Join the community</p>
-            <h1 className="mt-2 text-2xl font-bold tracking-[-0.04em] text-brand-navy sm:text-3xl">
-              Tell us about yourself
-            </h1>
-            <p className="mt-3 text-sm text-brand-slate">
-              Already have an account?{" "}
-              <Link to="/login" className="font-bold text-brand-blue underline-offset-4 hover:underline focus:outline-none focus:ring-2 focus:ring-ring">
-                Log in
-              </Link>
+            <p className="section-label">
+              {isEditing ? "Member profile" : "Join the community"}
             </p>
+            <h1 className="mt-2 text-2xl font-bold tracking-[-0.04em] text-brand-navy sm:text-3xl">
+              {isEditing ? "Update your information" : "Tell us about yourself"}
+            </h1>
+            {!isEditing && (
+              <p className="mt-3 text-sm text-brand-slate">
+                Already have an account?{" "}
+                <Link
+                  to="/login"
+                  className="font-bold text-brand-blue underline-offset-4 hover:underline focus:outline-none focus:ring-2 focus:ring-ring"
+                >
+                  Log in
+                </Link>
+              </p>
+            )}
             <p className="mt-4 text-sm font-bold text-brand-blue sm:hidden">
               Step {step + 1} of 4{" "}
               <span className="text-brand-slate">· {steps[step]}</span>
@@ -632,7 +717,6 @@ export default function RegisterPage() {
                         label={value}
                         selected={data.userType === value}
                         onClick={() => changePath("userType", value)}
-                        disabled={pathLocked}
                       />
                     ),
                   )}
@@ -645,13 +729,11 @@ export default function RegisterPage() {
                     label="BINUS"
                     selected={data.institutionType === "BINUS"}
                     onClick={() => changePath("institutionType", "BINUS")}
-                    disabled={pathLocked}
                   />
                   <Choice
                     label="Non-BINUS"
                     selected={data.institutionType === "Non-BINUS"}
                     onClick={() => changePath("institutionType", "Non-BINUS")}
-                    disabled={pathLocked}
                   />
                 </div>
               </div>
@@ -790,7 +872,12 @@ export default function RegisterPage() {
                 onClick={submit}
                 disabled={completeProfile.isPending}
               >
-                {completeProfile.isPending ? "Saving..." : "Submit registration"} <Send className="ml-2 size-4" />
+                {completeProfile.isPending
+                  ? "Saving..."
+                  : isEditing
+                    ? "Save changes"
+                    : "Submit registration"}{" "}
+                <Send className="ml-2 size-4" />
               </Button>
             )}
           </div>

@@ -3,6 +3,7 @@ export const apiPaths = {
   session: "/auth/get-session",
   profile: "/registration/me",
   completeProfile: "/registration/complete-profile",
+  updateProfile: "/registration/profile",
   sendVerification: "/registration/binus-email/send-verification",
   verifyEmail: "/registration/verify-outlook",
   options: "/registration/options",
