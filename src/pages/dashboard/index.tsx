@@ -18,6 +18,7 @@ import {
   useMembershipStatus,
 } from "@/api/membership/queries";
 import { signOut } from "@/api/auth";
+import { getSafeHttpUrl } from "@/utils/http-url";
 
 export default function DashboardPage() {
   const profileQuery = useCurrentUser();
@@ -326,36 +327,39 @@ export default function DashboardPage() {
           {resourcesQuery.isSuccess &&
             (resourcesQuery.data.resources.length ? (
               <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                {resourcesQuery.data.resources.map((resource) => (
-                  <article
-                    key={resource.id}
-                    className="flex min-h-40 flex-col rounded-2xl border border-brand-blue/10 bg-white p-5"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <h3 className="font-bold text-brand-navy">
-                        {resource.title}
-                      </h3>
-                      {resource.region && (
-                        <span className="shrink-0 rounded-full bg-brand-pale px-2.5 py-1 text-xs font-semibold text-brand-blue">
-                          {resource.region.shortName ?? resource.region.name}
-                        </span>
+                {resourcesQuery.data.resources.map((resource) => {
+                  const safeUrl = getSafeHttpUrl(resource.url);
+                  return (
+                    <article
+                      key={resource.id}
+                      className="flex min-h-40 flex-col rounded-2xl border border-brand-blue/10 bg-white p-5"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <h3 className="font-bold text-brand-navy">
+                          {resource.title}
+                        </h3>
+                        {resource.region && (
+                          <span className="shrink-0 rounded-full bg-brand-pale px-2.5 py-1 text-xs font-semibold text-brand-blue">
+                            {resource.region.shortName ?? resource.region.name}
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-2 flex-1 text-sm leading-6 text-brand-slate">
+                        {resource.description}
+                      </p>
+                      {safeUrl && (
+                        <a
+                          href={safeUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="mt-4 inline-flex min-h-11 items-center gap-2 self-start rounded-lg font-bold text-brand-blue underline-offset-4 hover:underline focus:outline-none focus:ring-2 focus:ring-ring"
+                        >
+                          Open resource <ExternalLink className="size-4" />
+                        </a>
                       )}
-                    </div>
-                    <p className="mt-2 flex-1 text-sm leading-6 text-brand-slate">
-                      {resource.description}
-                    </p>
-                    {resource.url && (
-                      <a
-                        href={resource.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="mt-4 inline-flex min-h-11 items-center gap-2 self-start rounded-lg font-bold text-brand-blue underline-offset-4 hover:underline focus:outline-none focus:ring-2 focus:ring-ring"
-                      >
-                        Open resource <ExternalLink className="size-4" />
-                      </a>
-                    )}
-                  </article>
-                ))}
+                    </article>
+                  );
+                })}
               </div>
             ) : (
               <p className="mt-4 rounded-2xl border border-dashed border-brand-blue/20 bg-white p-6 text-sm text-brand-slate">
