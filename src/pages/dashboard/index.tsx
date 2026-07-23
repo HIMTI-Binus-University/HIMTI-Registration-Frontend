@@ -10,6 +10,7 @@ import { useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
+import { ResourceMarkdown } from "@/components/resource-markdown";
 import { gsap, motionEase, useGSAP } from "@/lib/motion";
 import { usePublishedEvents } from "@/api/events/queries";
 import { useCurrentUser } from "@/api/users/queries";
@@ -344,9 +345,9 @@ export default function DashboardPage() {
                           </span>
                         )}
                       </div>
-                      <p className="mt-2 flex-1 text-sm leading-6 text-brand-slate">
+                      <ResourceMarkdown className="mt-2 flex-1 text-sm leading-6 text-brand-slate">
                         {resource.description}
-                      </p>
+                      </ResourceMarkdown>
                       {safeUrl && (
                         <a
                           href={safeUrl}
