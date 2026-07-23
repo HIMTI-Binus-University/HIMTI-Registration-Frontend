@@ -6,7 +6,7 @@ import {
   Pencil,
   Send,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,6 +26,11 @@ import {
   type RegistrationData,
   type UserType,
 } from "@/pages/register/payload";
+import {
+  clearRegistrationDraft,
+  readRegistrationDraft,
+  writeRegistrationDraft,
+} from "@/pages/register/draft";
 import axios from "axios";
 
 const initialData: RegistrationData = {
@@ -58,6 +63,11 @@ const institutionKeys: Array<keyof RegistrationData> = [
   "department",
   "affiliation",
 ];
+
+type VerificationNotice = {
+  type: "success" | "info" | "error";
+  message: string;
+} | null;
 
 function Field({
   label,
@@ -187,6 +197,10 @@ export default function RegisterPage({
   const [pathNotice, setPathNotice] = useState("");
   const [emailVerified, setEmailVerified] = useState(false);
   const [verificationSent, setVerificationSent] = useState(false);
+  const [verificationChecking, setVerificationChecking] = useState(false);
+  const [verificationNotice, setVerificationNotice] =
+    useState<VerificationNotice>(null);
+  const [draftReady, setDraftReady] = useState(false);
   const hydratedProfile = useRef(false);
   const firstError = useRef<HTMLDivElement>(null);
   const profile = useCurrentUser();
@@ -199,14 +213,30 @@ export default function RegisterPage({
   const membershipPeriod = reregister
     ? membershipStatus.data?.availablePeriod
     : membershipStatus.data?.activePeriod;
+  const draftContext = useMemo(
+    () =>
+      profile.data
+        ? {
+            userId: profile.data.id,
+            mode: reregister ? ("reregister" as const) : ("register" as const),
+            membershipPeriodId: membershipPeriod?.id ?? null,
+          }
+        : null,
+    [membershipPeriod?.id, profile.data, reregister],
+  );
 
   useEffect(() => {
     const user = profile.data;
-    if (!user || (reregister && !options.data)) return;
+    if (
+      !user ||
+      !draftContext ||
+      membershipStatus.isPending ||
+      (reregister && !options.data)
+    )
+      return;
     if (!hydratedProfile.current) {
       hydratedProfile.current = true;
-      setData((current) => ({
-        ...current,
+      const profileData: RegistrationData = {
         userType:
           user.memberType === "STUDENT"
             ? "Student"
@@ -248,10 +278,64 @@ export default function RegisterPage({
         institution: user.universityName ?? user.university?.name ?? "",
         department: user.department ?? "",
         affiliation: user.affiliation ?? "",
-      }));
-      setEmailVerified(user.outlookEmailVerified);
+      };
+      const draft = readRegistrationDraft(draftContext);
+      const restoredData = draft
+        ? { ...profileData, ...draft.data, personalEmail: user.email }
+        : profileData;
+
+      if (draft && restoredData.institutionType === "BINUS" && options.data) {
+        if (
+          restoredData.region &&
+          !options.data.binusRegions.some(
+            (region) => region.id === restoredData.region,
+          )
+        )
+          restoredData.region = "";
+        if (
+          restoredData.userType === "Student" &&
+          restoredData.major &&
+          !options.data.studyPrograms.some(
+            (program) => program.id === restoredData.major,
+          )
+        )
+          restoredData.major = "";
+      }
+
+      setData(restoredData);
+      setStep(draft?.step ?? 0);
+      setVerificationSent(
+        Boolean(
+          draft?.verificationSentFor &&
+          draft.verificationSentFor.toLowerCase() ===
+            restoredData.binusEmail.toLowerCase(),
+        ),
+      );
+      setEmailVerified(
+        Boolean(
+          user.outlookEmailVerified &&
+          user.outlookEmail?.toLowerCase() ===
+            restoredData.binusEmail.toLowerCase(),
+        ),
+      );
+      setDraftReady(true);
     }
-  }, [options.data, profile.data, reregister]);
+  }, [
+    draftContext,
+    membershipStatus.isPending,
+    options.data,
+    profile.data,
+    reregister,
+  ]);
+
+  useEffect(() => {
+    if (!draftReady || !draftContext || submitted) return;
+    writeRegistrationDraft(draftContext, {
+      step,
+      data,
+      verificationSentFor: verificationSent ? data.binusEmail : null,
+    });
+  }, [data, draftContext, draftReady, step, submitted, verificationSent]);
 
   useEffect(() => {
     if (errors.length) firstError.current?.focus();
@@ -259,11 +343,58 @@ export default function RegisterPage({
   const resetVerification = () => {
     setVerificationSent(false);
     setEmailVerified(false);
+    setVerificationNotice(null);
   };
   const update = (name: keyof RegistrationData, value: string) => {
     setData((current) => ({ ...current, [name]: value }));
     if (name === "binusEmail") resetVerification();
     setErrors([]);
+  };
+
+  const sendVerificationLink = () => {
+    setVerificationNotice(null);
+    sendVerification.mutate(data.binusEmail, {
+      onSuccess: () => {
+        setVerificationSent(true);
+        setVerificationNotice({
+          type: "info",
+          message: `A new verification link was sent to ${data.binusEmail}.`,
+        });
+      },
+      onError: () =>
+        setVerificationNotice({
+          type: "error",
+          message:
+            "We could not send the verification link. Check your connection and try again.",
+        }),
+    });
+  };
+
+  const checkVerificationStatus = async () => {
+    setVerificationChecking(true);
+    setVerificationNotice(null);
+    try {
+      const { data: user } = await profile.refetch({ throwOnError: true });
+      const verified = Boolean(
+        user?.outlookEmailVerified &&
+        user.outlookEmail?.toLowerCase() === data.binusEmail.toLowerCase(),
+      );
+      setEmailVerified(verified);
+      setVerificationNotice({
+        type: verified ? "success" : "info",
+        message: verified
+          ? "Your BINUS email has been verified."
+          : "Your BINUS email has not been verified yet. Open the latest verification link, then check again.",
+      });
+    } catch {
+      setVerificationNotice({
+        type: "error",
+        message:
+          "We could not check your verification status. Check your connection and try again.",
+      });
+    } finally {
+      setVerificationChecking(false);
+    }
   };
   const changePath = (
     name: "userType" | "institutionType",
@@ -313,11 +444,7 @@ export default function RegisterPage({
               variant="outline"
               className="mt-4 min-h-11 w-full bg-white sm:w-auto"
               disabled={!data.binusEmail || sendVerification.isPending}
-              onClick={() =>
-                sendVerification.mutate(data.binusEmail, {
-                  onSuccess: () => setVerificationSent(true),
-                })
-              }
+              onClick={sendVerificationLink}
             >
               Send verification link
             </Button>
@@ -334,32 +461,39 @@ export default function RegisterPage({
               <Button
                 type="button"
                 className="mt-4 min-h-11 w-full sm:w-auto"
-                onClick={() =>
-                  void profile
-                    .refetch()
-                    .then(({ data: user }) =>
-                      setEmailVerified(
-                        Boolean(
-                          user?.outlookEmailVerified &&
-                          user.outlookEmail?.toLowerCase() ===
-                            data.binusEmail.toLowerCase(),
-                        ),
-                      ),
-                    )
-                }
+                disabled={verificationChecking}
+                onClick={() => void checkVerificationStatus()}
               >
-                Check verification status
+                {verificationChecking
+                  ? "Checking..."
+                  : "Check verification status"}
               </Button>
               <button
                 type="button"
                 className="mt-3 block min-h-11 w-full rounded-lg text-sm font-semibold text-brand-blue focus:outline-none focus:ring-2 focus:ring-ring sm:w-auto sm:px-2"
-                onClick={() => sendVerification.mutate(data.binusEmail)}
+                disabled={sendVerification.isPending}
+                onClick={sendVerificationLink}
               >
-                Resend verification link
+                {sendVerification.isPending
+                  ? "Sending..."
+                  : "Resend verification link"}
               </button>
             </div>
           )}
         </>
+      )}
+      {verificationNotice && (
+        <p
+          className={`mt-3 text-xs leading-5 ${
+            verificationNotice.type === "success"
+              ? "text-emerald-700"
+              : verificationNotice.type === "error"
+                ? "text-red-700"
+                : "text-brand-slate"
+          }`}
+        >
+          {verificationNotice.message}
+        </p>
       )}
     </div>
   );
@@ -600,7 +734,10 @@ export default function RegisterPage({
       return;
     }
     saveProfile.mutate(buildRegistrationPayload(data, options.data), {
-      onSuccess: () => setSubmitted(true),
+      onSuccess: () => {
+        if (draftContext) clearRegistrationDraft(draftContext);
+        setSubmitted(true);
+      },
       onError: (error) => {
         const body = axios.isAxiosError(error) ? error.response?.data : null;
         const registrationError = body?.errors?.registration;

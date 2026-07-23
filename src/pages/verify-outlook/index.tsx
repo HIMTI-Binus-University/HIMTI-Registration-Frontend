@@ -31,6 +31,8 @@ const verifyToken = (token: string) => {
 export default function VerifyOutlookPage() {
   const [params] = useSearchParams();
   const token = params.get("token");
+  const returnPath =
+    params.get("flow") === "reregister" ? "/reregister" : "/register";
   const [status, setStatus] = useState<VerificationStatus>(
     token ? "loading" : "invalid",
   );
@@ -100,7 +102,7 @@ export default function VerifyOutlookPage() {
             registration and request a new link.
           </p>
           <Button asChild className="mt-7">
-            <Link to="/reregister">Return to registration</Link>
+            <Link to={returnPath}>Return to registration</Link>
           </Button>
         </section>
       </AuthLayout>
@@ -143,7 +145,7 @@ export default function VerifyOutlookPage() {
           application.
         </p>
         <Button asChild className="mt-7">
-          <Link to="/reregister">Return to registration</Link>
+          <Link to={returnPath}>Return to registration</Link>
         </Button>
       </section>
     </AuthLayout>

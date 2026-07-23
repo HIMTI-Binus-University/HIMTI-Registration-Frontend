@@ -16,6 +16,7 @@ import {
 } from "@/api/membership/queries";
 import { signOut, useSession } from "@/api/auth";
 import apiClient from "@/config/api-client";
+import { writeRegistrationDraft } from "@/pages/register/draft";
 
 vi.mock("@/api/users/queries", () => ({
   useCurrentUser: vi.fn(),
@@ -105,6 +106,7 @@ function mockProfile(overrides = {}) {
 
 afterEach(cleanup);
 beforeEach(() => {
+  window.localStorage.clear();
   vi.mocked(apiClient.get).mockReset();
   mockProfile();
   vi.mocked(useUserRegistrationOptions).mockReturnValue({
@@ -564,7 +566,9 @@ test("verifies an Outlook token once and shows success", async () => {
 
   renderApp(
     <StrictMode>
-      <MemoryRouter initialEntries={["/verify-outlook?token=success-token"]}>
+      <MemoryRouter
+        initialEntries={["/verify-outlook?token=success-token&flow=reregister"]}
+      >
         <App />
       </MemoryRouter>
     </StrictMode>,
@@ -575,6 +579,28 @@ test("verifies an Outlook token once and shows success", async () => {
   expect(apiClient.get).toHaveBeenCalledWith("/user/binus-email/verify", {
     params: { token: "success-token" },
   });
+  expect(
+    screen.getByRole("link", { name: /return to registration/i }),
+  ).toHaveAttribute("href", "/reregister");
+});
+
+test("defaults unknown verification flows to initial registration", async () => {
+  vi.mocked(apiClient.get).mockResolvedValueOnce({ data: { msg: "success" } });
+
+  renderApp(
+    <MemoryRouter
+      initialEntries={[
+        "/verify-outlook?token=unknown-flow-token&flow=https://evil.example",
+      ]}
+    >
+      <App />
+    </MemoryRouter>,
+  );
+
+  expect(await screen.findByText(/email confirmed/i)).toBeInTheDocument();
+  expect(
+    screen.getByRole("link", { name: /return to registration/i }),
+  ).toHaveAttribute("href", "/register");
 });
 
 test("shows an invalid state for a rejected Outlook token", async () => {
@@ -605,6 +631,64 @@ test("shows a retry option for a temporary verification failure", async () => {
     await screen.findByText(/verification unavailable/i),
   ).toBeInTheDocument();
   expect(screen.getByText("Try again")).toBeInTheDocument();
+});
+
+test("restores a registration draft and reports an unverified BINUS email", async () => {
+  const user = userEvent.setup();
+  const refetch = vi.fn().mockResolvedValue({
+    data: { ...profile, outlookEmailVerified: false },
+  });
+  vi.mocked(useCurrentUser).mockReturnValue({
+    data: profile,
+    isPending: false,
+    isError: false,
+    isSuccess: true,
+    refetch,
+  } as never);
+  writeRegistrationDraft(
+    {
+      userId: profile.id,
+      mode: "register",
+      membershipPeriodId: "period-1",
+    },
+    {
+      step: 2,
+      data: {
+        userType: "Student",
+        institutionType: "BINUS",
+        name: "Draft Member",
+        phone: "08123456789",
+        personalEmail: profile.email,
+        lineId: "draft-member",
+        nim: "2600000000",
+        batch: "28",
+        binusEmail: "member@binus.ac.id",
+        region: "",
+        major: "",
+        university: "",
+        institution: "",
+        department: "",
+        affiliation: "",
+      },
+      verificationSentFor: "member@binus.ac.id",
+    },
+  );
+
+  renderApp(
+    <MemoryRouter initialEntries={["/register"]}>
+      <App />
+    </MemoryRouter>,
+  );
+
+  expect(await screen.findByLabelText(/^nim/i)).toHaveValue("2600000000");
+  await user.click(
+    screen.getByRole("button", { name: /check verification status/i }),
+  );
+
+  expect(
+    await screen.findByText(/has not been verified yet/i),
+  ).toBeInTheDocument();
+  expect(refetch).toHaveBeenCalledTimes(1);
 });
 
 test("shows BINUS verification and clears institution details when the path changes", async () => {
