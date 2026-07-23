@@ -14,6 +14,7 @@ const options: UserRegistrationOptions = {
 const base: RegistrationData = {
   userType: "Student",
   institutionType: "BINUS",
+  membershipPosition: "Staff",
   name: "HIMTI Member",
   phone: "08123456789",
   personalEmail: "google@example.com",
@@ -33,6 +34,7 @@ const common = {
   name: "HIMTI Member",
   phoneNumber: "08123456789",
   lineId: "himti-member",
+  membershipPosition: "STAFF",
 };
 
 describe("registration payloads", () => {

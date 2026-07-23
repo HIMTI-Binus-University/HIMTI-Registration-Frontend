@@ -17,6 +17,7 @@ import {
 import { signOut, useSession } from "@/api/auth";
 import apiClient from "@/config/api-client";
 import { writeRegistrationDraft } from "@/pages/register/draft";
+import { usePublishedEvents } from "@/api/events/queries";
 
 vi.mock("@/api/users/queries", () => ({
   useCurrentUser: vi.fn(),
@@ -39,12 +40,7 @@ vi.mock("@/api/membership/queries", () => ({
 }));
 
 vi.mock("@/api/events/queries", () => ({
-  usePublishedEvents: () => ({
-    data: [],
-    isPending: false,
-    isError: false,
-    isSuccess: true,
-  }),
+  usePublishedEvents: vi.fn(),
 }));
 
 vi.mock("@/api/auth", () => ({
@@ -94,6 +90,56 @@ const profile = {
   reregistrationPeriod: null,
 };
 
+const publishedEvent = {
+  id: "event-1",
+  name: "HIMTI Tech Festival",
+  publicDescription: "Build, learn, and connect with the community.",
+  coverImageUrl: "https://example.com/event-cover.jpg",
+  subevents: [
+    {
+      id: "subevent-2",
+      name: "Closing Showcase",
+      publicDescription: "See the finalists present their projects.",
+      date: "2026-08-24T08:00:00.000Z",
+      type: "SHOWCASE",
+      locationName: "BINUS Alam Sutera",
+      locationUrl: "https://maps.example.com/showcase",
+      posterUrl: null,
+      destinationUrl: "javascript:alert(1)",
+      position: 2,
+      price: 0,
+      maxParticipants: null,
+      isRegistrationOpen: false,
+    },
+    {
+      id: "subevent-1",
+      name: "Future Web Workshop",
+      publicDescription: "Learn modern frontend foundations.",
+      date: "2026-08-23T08:00:00.000Z",
+      type: "WORKSHOP",
+      locationName: "BINUS Anggrek",
+      locationUrl: "javascript:alert(2)",
+      posterUrl: "https://example.com/workshop-poster.jpg",
+      destinationUrl: "https://registration.example.com/workshop",
+      position: 1,
+      price: 25000,
+      maxParticipants: 40,
+      isRegistrationOpen: true,
+    },
+  ],
+};
+
+function mockEvents(overrides = {}) {
+  vi.mocked(usePublishedEvents).mockReturnValue({
+    data: [],
+    isPending: false,
+    isError: false,
+    isSuccess: true,
+    refetch: vi.fn(),
+    ...overrides,
+  } as never);
+}
+
 function mockProfile(overrides = {}) {
   vi.mocked(useCurrentUser).mockReturnValue({
     data: { ...profile, ...overrides },
@@ -109,12 +155,14 @@ beforeEach(() => {
   window.localStorage.clear();
   vi.mocked(apiClient.get).mockReset();
   mockProfile();
+  mockEvents();
   vi.mocked(useUserRegistrationOptions).mockReturnValue({
     data: undefined,
   } as never);
   vi.mocked(useMembershipStatus).mockReturnValue({
     data: {
       currentPeriod: { id: "period-1", label: "2025/2026" },
+      currentPosition: null,
       availablePeriod: null,
       activePeriod: { id: "period-1", label: "2025/2026" },
     },
@@ -178,6 +226,7 @@ test("renders the HIMTI landing page", () => {
 });
 
 test("renders the registration wizard and advances through the first step", async () => {
+  const user = userEvent.setup();
   renderApp(
     <MemoryRouter initialEntries={["/register"]}>
       <App />
@@ -201,9 +250,14 @@ test("renders the registration wizard and advances through the first step", asyn
   expect(
     screen.getByLabelText(/registration progress, step 1 of 4/i),
   ).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Officer" })).toBeNull();
+  await user.click(screen.getByRole("button", { name: "Student" }));
+  await user.click(screen.getByRole("button", { name: "BINUS" }));
+  await user.click(screen.getByRole("button", { name: /continue/i }));
+  expect(screen.getByLabelText(/full name/i)).toBeInTheDocument();
 });
 
-test("renders the member dashboard sections", () => {
+test("renders the member dashboard without the static Your Events section", () => {
   mockProfile({
     registrationCompleted: true,
     registrationCompletedAt: "2026-07-21T00:00:00.000Z",
@@ -217,9 +271,7 @@ test("renders the member dashboard sections", () => {
   expect(
     screen.getByRole("heading", { name: "HIMTI Member" }),
   ).toBeInTheDocument();
-  expect(
-    screen.getByRole("heading", { name: "Your Events" }),
-  ).toBeInTheDocument();
+  expect(screen.queryByRole("heading", { name: "Your Events" })).toBeNull();
   expect(screen.getByRole("heading", { name: "Events" })).toBeInTheDocument();
   expect(
     screen.getByRole("heading", { name: "Member resources" }),
@@ -232,10 +284,116 @@ test("renders the member dashboard sections", () => {
     "/profile/edit",
   );
   expect(
-    screen.getByText(/you are not registered for any events yet/i),
+    screen.getByText(/no events have been published yet/i),
   ).toBeInTheDocument();
   expect(
     screen.getByText(/no member resources have been published/i),
+  ).toBeInTheDocument();
+});
+
+test("renders compact event cards that open internal detail pages", () => {
+  mockProfile({
+    registrationCompleted: true,
+    registrationCompletedAt: "2026-07-21T00:00:00.000Z",
+  });
+  mockEvents({ data: [publishedEvent] });
+
+  renderApp(
+    <MemoryRouter initialEntries={["/dashboard"]}>
+      <App />
+    </MemoryRouter>,
+  );
+
+  expect(
+    screen.getByRole("heading", { name: publishedEvent.name }),
+  ).toBeInTheDocument();
+  expect(screen.getByText("2 activities")).toBeInTheDocument();
+  expect(
+    screen.getByRole("link", { name: /himti tech festival/i }),
+  ).toHaveAttribute("href", "/events/event-1");
+  expect(screen.queryByText("Future Web Workshop")).toBeNull();
+});
+
+test("renders ordered event activities and only safe destination CTAs", () => {
+  mockProfile({
+    registrationCompleted: true,
+    registrationCompletedAt: "2026-07-21T00:00:00.000Z",
+  });
+  mockEvents({ data: [publishedEvent] });
+
+  renderApp(
+    <MemoryRouter initialEntries={["/events/event-1"]}>
+      <App />
+    </MemoryRouter>,
+  );
+
+  expect(
+    screen.getByRole("heading", { name: publishedEvent.name }),
+  ).toBeInTheDocument();
+  const activityHeadings = screen.getAllByRole("heading", { level: 3 });
+  expect(activityHeadings.map((heading) => heading.textContent)).toEqual([
+    "Future Web Workshop",
+    "Closing Showcase",
+  ]);
+  const destination = screen.getByRole("link", { name: /^register/i });
+  expect(destination).toHaveAttribute(
+    "href",
+    "https://registration.example.com/workshop",
+  );
+  expect(destination).toHaveAttribute("target", "_blank");
+  expect(destination).toHaveAttribute("rel", "noopener noreferrer");
+  expect(screen.getAllByRole("link", { name: /^register/i })).toHaveLength(1);
+  expect(screen.queryByText(/registration closed/i)).not.toBeInTheDocument();
+  expect(screen.queryByRole("link", { name: /binus anggrek/i })).toBeNull();
+});
+
+test("supports event loading, retryable error, and not-found states", async () => {
+  const user = userEvent.setup();
+  const refetch = vi.fn();
+  mockProfile({
+    registrationCompleted: true,
+    registrationCompletedAt: "2026-07-21T00:00:00.000Z",
+  });
+  mockEvents({
+    data: undefined,
+    isPending: true,
+    isSuccess: false,
+  });
+  const view = renderApp(
+    <MemoryRouter initialEntries={["/events/event-1"]}>
+      <App />
+    </MemoryRouter>,
+  );
+  expect(
+    screen.getByRole("status", { name: /loading event/i }),
+  ).toBeInTheDocument();
+
+  mockEvents({
+    data: undefined,
+    isError: true,
+    isSuccess: false,
+    refetch,
+  });
+  view.rerender(
+    <QueryClientProvider client={new QueryClient()}>
+      <MemoryRouter initialEntries={["/events/event-1"]}>
+        <App />
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
+  await user.click(screen.getByRole("button", { name: /try again/i }));
+  expect(refetch).toHaveBeenCalledOnce();
+
+  mockEvents();
+  view.rerender(
+    <QueryClientProvider client={new QueryClient()}>
+      <MemoryRouter initialEntries={["/events/missing"]}>
+        <App />
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
+  expect(
+    screen.getByRole("heading", { name: /event not found/i }),
   ).toBeInTheDocument();
 });
 
@@ -247,6 +405,7 @@ test("renders all current-period resources and the reregistration prompt", () =>
   vi.mocked(useMembershipStatus).mockReturnValue({
     data: {
       currentPeriod: { id: "period-1", label: "2025/2026" },
+      currentPosition: "MEMBER",
       availablePeriod: { id: "period-2", label: "2026/2027" },
       activePeriod: { id: "period-2", label: "2026/2027" },
     },
@@ -313,7 +472,39 @@ test("renders all current-period resources and the reregistration prompt", () =>
   expect(screen.queryByText(/pengurus/i)).not.toBeInTheDocument();
 });
 
-test("prefills and submits the reregistration flow", async () => {
+test("prefills the reregistration position from membership status", () => {
+  mockProfile({
+    registrationCompleted: true,
+    registrationCompletedAt: "2026-07-21T00:00:00.000Z",
+  });
+  vi.mocked(useMembershipStatus).mockReturnValue({
+    data: {
+      currentPeriod: { id: "period-1", label: "2025/2026" },
+      currentPosition: "STAFF",
+      availablePeriod: { id: "period-2", label: "2026/2027" },
+      activePeriod: { id: "period-2", label: "2026/2027" },
+    },
+    isPending: false,
+    isError: false,
+    isSuccess: true,
+  } as never);
+  vi.mocked(useUserRegistrationOptions).mockReturnValue({
+    data: { universities: [], studyPrograms: [], binusRegions: [] },
+  } as never);
+
+  renderApp(
+    <MemoryRouter initialEntries={["/reregister"]}>
+      <App />
+    </MemoryRouter>,
+  );
+
+  expect(screen.getByRole("button", { name: "Staff" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+});
+
+test("restores, changes, and submits the reregistration position", async () => {
   const user = userEvent.setup();
   const mutate = vi.fn();
   mockProfile({
@@ -337,6 +528,7 @@ test("prefills and submits the reregistration flow", async () => {
   vi.mocked(useMembershipStatus).mockReturnValue({
     data: {
       currentPeriod: { id: "period-1", label: "2025/2026" },
+      currentPosition: "STAFF",
       availablePeriod: { id: "period-2", label: "2026/2027" },
       activePeriod: { id: "period-2", label: "2026/2027" },
     },
@@ -355,6 +547,35 @@ test("prefills and submits the reregistration flow", async () => {
     isPending: false,
     mutate,
   } as never);
+  writeRegistrationDraft(
+    {
+      userId: profile.id,
+      mode: "reregister",
+      membershipPeriodId: "period-2",
+    },
+    {
+      step: 0,
+      data: {
+        userType: "Student",
+        institutionType: "BINUS",
+        membershipPosition: "Member",
+        name: "HIMTI Member",
+        phone: "08123456789",
+        personalEmail: profile.email,
+        lineId: "himti-member",
+        nim: "2600000000",
+        batch: "28",
+        binusEmail: "member@binus.ac.id",
+        region: "alam-sutera-id",
+        major: "cs-id",
+        university: "BINUS University",
+        institution: "",
+        department: "",
+        affiliation: "",
+      },
+      verificationSentFor: null,
+    },
+  );
 
   renderApp(
     <MemoryRouter initialEntries={["/reregister"]}>
@@ -369,6 +590,11 @@ test("prefills and submits the reregistration flow", async () => {
   expect(screen.getByLabelText(/membership period/i)).toHaveAttribute(
     "readonly",
   );
+  expect(screen.getByRole("button", { name: "Member" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await user.click(screen.getByRole("button", { name: "Officer" }));
 
   await user.click(screen.getByRole("button", { name: /continue/i }));
   expect(screen.getByLabelText(/full name/i)).toHaveValue("HIMTI Member");
@@ -379,6 +605,8 @@ test("prefills and submits the reregistration flow", async () => {
     screen.queryByRole("button", { name: /send verification/i }),
   ).toBeNull();
   await user.click(screen.getByRole("button", { name: /continue/i }));
+  expect(screen.getByText("HIMTI position")).toBeInTheDocument();
+  expect(screen.getByText("Officer")).toBeInTheDocument();
   await user.click(
     screen.getByRole("button", { name: /submit reregistration/i }),
   );
@@ -390,6 +618,7 @@ test("prefills and submits the reregistration flow", async () => {
       name: "HIMTI Member",
       phoneNumber: "08123456789",
       lineId: "himti-member",
+      membershipPosition: "OFFICER",
       universityId: "binus-id",
       regionId: "alam-sutera-id",
       outlookEmail: "member@binus.ac.id",
@@ -580,7 +809,7 @@ test("verifies an Outlook token once and shows success", async () => {
     params: { token: "success-token" },
   });
   expect(
-    screen.getByRole("link", { name: /return to registration/i }),
+    await screen.findByRole("link", { name: /return to registration/i }),
   ).toHaveAttribute("href", "/reregister");
 });
 
@@ -599,7 +828,7 @@ test("defaults unknown verification flows to initial registration", async () => 
 
   expect(await screen.findByText(/email confirmed/i)).toBeInTheDocument();
   expect(
-    screen.getByRole("link", { name: /return to registration/i }),
+    await screen.findByRole("link", { name: /return to registration/i }),
   ).toHaveAttribute("href", "/register");
 });
 
@@ -656,6 +885,7 @@ test("restores a registration draft and reports an unverified BINUS email", asyn
       data: {
         userType: "Student",
         institutionType: "BINUS",
+        membershipPosition: "Member",
         name: "Draft Member",
         phone: "08123456789",
         personalEmail: profile.email,
@@ -715,6 +945,7 @@ test("shows BINUS verification and clears institution details when the path chan
   await user.click(screen.getByRole("button", { name: /back/i }));
   await user.click(screen.getByRole("button", { name: /back/i }));
   await user.click(screen.getByRole("button", { name: "Lecturer" }));
+  expect(screen.queryByRole("button", { name: "Staff" })).toBeNull();
   await user.click(screen.getByRole("button", { name: /continue/i }));
 
   expect(screen.getByLabelText(/full name/i)).toHaveValue("HIMTI Member");

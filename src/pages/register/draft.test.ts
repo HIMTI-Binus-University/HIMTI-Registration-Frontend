@@ -19,6 +19,7 @@ const context: RegistrationDraftContext = {
 const data: RegistrationData = {
   userType: "Student",
   institutionType: "BINUS",
+  membershipPosition: "Officer",
   name: "HIMTI Member",
   phone: "08123456789",
   personalEmail: "member@example.com",
@@ -51,6 +52,7 @@ describe("registration draft", () => {
       verificationSentFor: data.binusEmail,
     });
     expect(registrationDraftKey(context)).toContain("2027%2F2028");
+    expect(registrationDraftKey(context)).toContain("registration-draft:v2");
   });
 
   it("removes expired and malformed drafts", () => {
@@ -70,6 +72,29 @@ describe("registration draft", () => {
 
     window.localStorage.setItem(registrationDraftKey(context), "not-json");
     expect(readRegistrationDraft(context)).toBeNull();
+
+    writeRegistrationDraft(context, {
+      step: 1,
+      data,
+      verificationSentFor: null,
+    });
+    const malformed = JSON.parse(
+      window.localStorage.getItem(registrationDraftKey(context))!,
+    );
+    malformed.data.membershipPosition = "CHAIRPERSON";
+    window.localStorage.setItem(
+      registrationDraftKey(context),
+      JSON.stringify(malformed),
+    );
+    expect(readRegistrationDraft(context)).toBeNull();
+  });
+
+  it("ignores drafts stored under the v1 key", () => {
+    const v1Key = registrationDraftKey(context).replace("v2", "v1");
+    window.localStorage.setItem(v1Key, JSON.stringify({ data }));
+
+    expect(readRegistrationDraft(context)).toBeNull();
+    expect(window.localStorage.getItem(v1Key)).not.toBeNull();
   });
 
   it("isolates registration modes, periods, and users", () => {

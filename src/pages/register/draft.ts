@@ -1,11 +1,12 @@
 import type { RegistrationData } from "@/pages/register/payload";
 
-const DRAFT_VERSION = 1;
+const DRAFT_VERSION = 2;
 export const REGISTRATION_DRAFT_TTL_MS = 24 * 60 * 60 * 1000;
 
 const registrationDataKeys: Array<keyof RegistrationData> = [
   "userType",
   "institutionType",
+  "membershipPosition",
   "name",
   "phone",
   "personalEmail",
@@ -45,7 +46,7 @@ export const registrationDraftKey = ({
   membershipPeriodId,
 }: RegistrationDraftContext) =>
   [
-    "himti:registration-draft:v1",
+    "himti:registration-draft:v2",
     encodeURIComponent(userId),
     mode,
     encodeURIComponent(membershipPeriodId ?? "none"),
@@ -54,7 +55,12 @@ export const registrationDraftKey = ({
 const isRegistrationData = (value: unknown): value is RegistrationData => {
   if (!value || typeof value !== "object") return false;
   const record = value as Record<string, unknown>;
-  return registrationDataKeys.every((key) => typeof record[key] === "string");
+  return (
+    registrationDataKeys.every((key) => typeof record[key] === "string") &&
+    ["", "Officer", "Staff", "Member"].includes(
+      record.membershipPosition as string,
+    )
+  );
 };
 
 const matchesContext = (

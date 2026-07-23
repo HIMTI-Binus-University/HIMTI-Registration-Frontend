@@ -104,7 +104,10 @@ export function useCompleteCurrentUserProfile() {
     mutationFn: (payload: Record<string, unknown>) =>
       apiClient.patch(apiPaths.completeCurrentUserProfile, payload),
     onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: queryKeys.currentUser }),
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.currentUser }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.membershipStatus }),
+      ]),
   });
 }
 

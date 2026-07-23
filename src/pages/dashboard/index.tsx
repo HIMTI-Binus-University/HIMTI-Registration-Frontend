@@ -2,9 +2,9 @@ import {
   BookOpen,
   CalendarDays,
   ExternalLink,
+  ArrowRight,
   LogOut,
   Pencil,
-  Ticket,
 } from "lucide-react";
 import { useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
@@ -20,6 +20,7 @@ import {
 } from "@/api/membership/queries";
 import { signOut } from "@/api/auth";
 import { getSafeHttpUrl } from "@/utils/http-url";
+import { EventImage } from "@/components/event-image";
 
 export default function DashboardPage() {
   const profileQuery = useCurrentUser();
@@ -205,81 +206,86 @@ export default function DashboardPage() {
 
         <section
           data-dashboard-motion
-          aria-labelledby="your-events-title"
-          className="mt-10"
-        >
-          <SectionHeading
-            icon={Ticket}
-            title="Your Events"
-            copy="Subevents you’re registered for."
-          />
-          <div className="mt-4 rounded-2xl border border-dashed border-brand-blue/20 bg-white p-6 text-sm text-brand-slate">
-            You are not registered for any events yet.
-          </div>
-        </section>
-
-        <section
-          data-dashboard-motion
           aria-labelledby="events-title"
           className="mt-10"
         >
           <SectionHeading
             icon={CalendarDays}
             title="Events"
-            copy="Choose a subevent and register your place."
+            copy="Explore published events and choose your next experience."
           />
-          <div className="mt-4 space-y-5">
-            {eventsQuery.isPending && (
-              <p className="rounded-2xl border border-brand-blue/10 bg-white p-6 text-sm text-brand-slate">
-                Loading events...
-              </p>
-            )}
-            {eventsQuery.isError && (
-              <p className="rounded-2xl border border-red-200 bg-white p-6 text-sm text-red-700">
+          {eventsQuery.isPending && (
+            <div
+              role="status"
+              aria-label="Loading events"
+              className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+            >
+              {[0, 1, 2].map((item) => (
+                <div
+                  key={item}
+                  className="h-64 animate-pulse rounded-2xl bg-brand-blue/10 motion-reduce:animate-none"
+                />
+              ))}
+            </div>
+          )}
+          {eventsQuery.isError && (
+            <div className="mt-4 rounded-2xl border border-red-200 bg-white p-6">
+              <p className="text-sm text-red-700">
                 Events could not be loaded.
               </p>
-            )}
-            {eventsQuery.data?.map((event) => (
-              <article
-                key={event.id}
-                className="rounded-2xl border border-brand-blue/10 bg-white p-5 sm:p-6"
+              <Button
+                type="button"
+                variant="outline"
+                className="mt-4"
+                onClick={() => void eventsQuery.refetch()}
               >
-                <h3 className="text-xl font-bold text-brand-navy">
-                  {event.name}
-                </h3>
-                <p className="mt-2 text-sm leading-6 text-brand-slate">
-                  {event.publicDescription}
-                </p>
-                <div className="mt-4 grid gap-4 md:grid-cols-2">
-                  {event.subevents.map((subevent) => (
-                    <div
-                      key={subevent.id}
-                      className="rounded-xl bg-brand-pale/40 p-4"
-                    >
-                      <p className="text-xs font-bold text-brand-blue">
-                        {subevent.type.replaceAll("_", " ")}
+                Try again
+              </Button>
+            </div>
+          )}
+          {eventsQuery.isSuccess &&
+            (eventsQuery.data.length ? (
+              <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {eventsQuery.data.map((event) => (
+                  <Link
+                    key={event.id}
+                    to={`/events/${encodeURIComponent(event.id)}`}
+                    className="group flex min-h-64 flex-col overflow-hidden rounded-2xl border border-brand-blue/10 bg-white shadow-sm transition hover:-translate-y-0.5 hover:border-brand-blue/30 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 motion-reduce:transform-none"
+                  >
+                    <EventImage
+                      src={event.coverImageUrl}
+                      alt={`${event.name} cover`}
+                      className="h-28"
+                    />
+                    <div className="flex flex-1 flex-col p-5">
+                      <h3 className="text-lg font-bold text-brand-navy">
+                        {event.name}
+                      </h3>
+                      <p className="mt-2 line-clamp-2 text-sm leading-6 text-brand-slate">
+                        {event.publicDescription ||
+                          "Event details will be available soon."}
                       </p>
-                      <h4 className="mt-1 font-bold text-brand-navy">
-                        {subevent.name}
-                      </h4>
-                      <p className="mt-2 text-sm text-brand-slate">
-                        {subevent.publicDescription}
-                      </p>
-                      <p className="mt-3 text-sm text-brand-slate">
-                        {new Date(subevent.date).toLocaleString()} ·{" "}
-                        {subevent.locationName ?? "Online"}
-                      </p>
+                      <span className="mt-auto flex items-center justify-between gap-3 pt-4 text-sm font-bold text-brand-blue">
+                        <span>
+                          {event.subevents.length}{" "}
+                          {event.subevents.length === 1
+                            ? "activity"
+                            : "activities"}
+                        </span>
+                        <span className="inline-flex items-center gap-1">
+                          View event
+                          <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5 motion-reduce:transform-none" />
+                        </span>
+                      </span>
                     </div>
-                  ))}
-                </div>
-              </article>
-            ))}
-            {eventsQuery.isSuccess && !eventsQuery.data.length && (
-              <p className="rounded-2xl border border-dashed border-brand-blue/20 p-6 text-sm text-brand-slate">
-                No open events are available right now.
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-4 rounded-2xl border border-dashed border-brand-blue/20 bg-white p-6 text-sm text-brand-slate">
+                No events have been published yet. Check back soon.
               </p>
-            )}
-          </div>
+            ))}
         </section>
 
         <section
@@ -378,7 +384,7 @@ function SectionHeading({
   title,
   copy,
 }: {
-  icon: typeof Ticket;
+  icon: typeof CalendarDays;
   title: string;
   copy: string;
 }) {

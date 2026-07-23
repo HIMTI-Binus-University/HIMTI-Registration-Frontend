@@ -2,9 +2,12 @@ import type { UserRegistrationOptions } from "@/api/users/queries";
 
 export type UserType = "Student" | "Lecturer" | "Other";
 export type InstitutionType = "BINUS" | "Non-BINUS";
+export type MembershipPosition = "Officer" | "Staff" | "Member";
+export type MembershipPositionValue = "OFFICER" | "STAFF" | "MEMBER";
 export type RegistrationData = {
   userType: UserType | "";
   institutionType: InstitutionType | "";
+  membershipPosition: MembershipPosition | "";
   name: string;
   phone: string;
   personalEmail: string;
@@ -27,6 +30,8 @@ export function buildRegistrationPayload(
   const common = {
     memberType: data.userType.toUpperCase(),
     institutionType: data.institutionType === "BINUS" ? "BINUS" : "NON_BINUS",
+    membershipPosition:
+      data.membershipPosition.toUpperCase() as MembershipPositionValue,
     name: data.name,
     phoneNumber: data.phone,
     lineId: data.lineId,

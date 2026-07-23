@@ -5,6 +5,7 @@ import RegisterPage from "@/pages/register";
 import ProfileEditPage from "@/pages/profile-edit";
 import DashboardPage from "@/pages/dashboard";
 import VerifyOutlookPage from "@/pages/verify-outlook";
+import EventDetailPage from "@/pages/event-detail";
 import { Navigate } from "react-router-dom";
 import type { AppRoute } from "@/types/common";
 import {
@@ -46,6 +47,16 @@ export const routes: AppRoute[] = [
       <RequireAuth>
         <RequireCompletedRegistration>
           <ProfileEditPage />
+        </RequireCompletedRegistration>
+      </RequireAuth>
+    ),
+  },
+  {
+    path: "/events/:eventId",
+    element: (
+      <RequireAuth>
+        <RequireCompletedRegistration>
+          <EventDetailPage />
         </RequireCompletedRegistration>
       </RequireAuth>
     ),

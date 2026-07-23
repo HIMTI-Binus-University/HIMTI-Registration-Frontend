@@ -8,15 +8,23 @@ export type MemberEvent = {
   name: string;
   publicDescription: string | null;
   coverImageUrl: string | null;
-  subevents: Array<{
-    id: string;
-    name: string;
-    publicDescription: string | null;
-    date: string;
-    type: string;
-    locationName: string | null;
-    price: number;
-  }>;
+  subevents: MemberSubevent[];
+};
+
+export type MemberSubevent = {
+  id: string;
+  name: string;
+  publicDescription: string | null;
+  date: string;
+  type: string;
+  locationName: string | null;
+  locationUrl: string | null;
+  posterUrl: string | null;
+  destinationUrl: string | null;
+  position: number;
+  price: number;
+  maxParticipants: number | null;
+  isRegistrationOpen: boolean;
 };
 
 export function usePublishedEvents() {

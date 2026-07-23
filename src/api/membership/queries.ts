@@ -2,12 +2,16 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import apiClient from "@/config/api-client";
 import { apiPaths } from "@/constants/api";
 import { queryKeys } from "@/constants/query-keys";
-import type { RegistrationPayload } from "@/pages/register/payload";
+import type {
+  MembershipPositionValue,
+  RegistrationPayload,
+} from "@/pages/register/payload";
 
 export type MembershipPeriod = { id: string; label: string };
 
 export type MembershipStatus = {
   currentPeriod: MembershipPeriod | null;
+  currentPosition: MembershipPositionValue | null;
   availablePeriod: MembershipPeriod | null;
   activePeriod: MembershipPeriod | null;
 };

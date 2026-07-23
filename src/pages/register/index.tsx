@@ -23,6 +23,8 @@ import type { UserRegistrationOptions } from "@/api/users/queries";
 import {
   buildRegistrationPayload,
   type InstitutionType,
+  type MembershipPosition,
+  type MembershipPositionValue,
   type RegistrationData,
   type UserType,
 } from "@/pages/register/payload";
@@ -36,6 +38,7 @@ import axios from "axios";
 const initialData: RegistrationData = {
   userType: "",
   institutionType: "",
+  membershipPosition: "Member",
   name: "",
   phone: "",
   personalEmail: "",
@@ -63,6 +66,21 @@ const institutionKeys: Array<keyof RegistrationData> = [
   "department",
   "affiliation",
 ];
+
+const membershipPositions: Array<{
+  display: MembershipPosition;
+  value: MembershipPositionValue;
+}> = [
+  { display: "Officer", value: "OFFICER" },
+  { display: "Staff", value: "STAFF" },
+  { display: "Member", value: "MEMBER" },
+];
+
+const displayMembershipPosition = (
+  value: MembershipPositionValue | null | undefined,
+): MembershipPosition | "" =>
+  membershipPositions.find((position) => position.value === value)?.display ??
+  "";
 
 type VerificationNotice = {
   type: "success" | "info" | "error";
@@ -251,6 +269,9 @@ export default function RegisterPage({
             : user.institutionType === "NON_BINUS"
               ? "Non-BINUS"
               : "",
+        membershipPosition: reregister
+          ? displayMembershipPosition(membershipStatus.data?.currentPosition)
+          : "Member",
         name: user.name,
         personalEmail: user.email,
         phone: user.phoneNumber ?? "",
@@ -283,6 +304,7 @@ export default function RegisterPage({
       const restoredData = draft
         ? { ...profileData, ...draft.data, personalEmail: user.email }
         : profileData;
+      if (!reregister) restoredData.membershipPosition = "Member";
 
       if (draft && restoredData.institutionType === "BINUS" && options.data) {
         if (
@@ -323,6 +345,7 @@ export default function RegisterPage({
   }, [
     draftContext,
     membershipStatus.isPending,
+    membershipStatus.data?.currentPosition,
     options.data,
     profile.data,
     reregister,
@@ -637,6 +660,11 @@ export default function RegisterPage({
         ? [
             ["userType", "Choose a user type"],
             ["institutionType", "Choose an institution type"],
+            ...(reregister
+              ? ([["membershipPosition", "Choose a HIMTI position"]] as Array<
+                  [keyof RegistrationData, string]
+                >)
+              : []),
           ]
         : step === 1
           ? [
@@ -935,6 +963,30 @@ export default function RegisterPage({
                 >
                   Assigned automatically and cannot be changed here.
                 </p>
+                {reregister && (
+                  <fieldset className="mt-7">
+                    <legend className="text-lg font-bold text-brand-navy">
+                      HIMTI position
+                      <span className="ml-1 text-brand-blue" aria-hidden="true">
+                        *
+                      </span>
+                    </legend>
+                    <p className="mt-1 text-sm leading-6 text-brand-slate">
+                      Choose the position you will hold during this membership
+                      period.
+                    </p>
+                    <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                      {membershipPositions.map(({ display }) => (
+                        <Choice
+                          key={display}
+                          label={display}
+                          selected={data.membershipPosition === display}
+                          onClick={() => update("membershipPosition", display)}
+                        />
+                      ))}
+                    </div>
+                  </fieldset>
+                )}
                 {membershipStatus.isError && (
                   <Button
                     type="button"
@@ -1014,6 +1066,11 @@ export default function RegisterPage({
                   items={[
                     ["User type", data.userType],
                     ["Institution", data.institutionType],
+                    ...(reregister
+                      ? ([["HIMTI position", data.membershipPosition]] as Array<
+                          [string, string]
+                        >)
+                      : []),
                     [
                       "Membership period",
                       membershipPeriod?.label ?? "Unavailable",
