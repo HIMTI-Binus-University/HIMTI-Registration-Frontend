@@ -193,7 +193,7 @@ export default function DashboardPage() {
                 Reregistration is open
               </h2>
               <p className="mt-1 text-sm leading-6 text-brand-slate">
-                Confirm your details for pengurus period{" "}
+                Confirm your details for member period{" "}
                 {membershipStatus.data.availablePeriod.label}.
               </p>
             </div>
@@ -292,8 +292,8 @@ export default function DashboardPage() {
             title="Member resources"
             copy={
               resourcesQuery.data
-                ? `Resources for pengurus period ${resourcesQuery.data.period.label}.`
-                : "Links and information for your current pengurus period."
+                ? `Resources for member period ${resourcesQuery.data.period.label}.`
+                : "Links and information for your current member period."
             }
           />
           {resourcesQuery.isPending && (

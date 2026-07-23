@@ -2,7 +2,7 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { BrowserRouter, MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import type React from "react";
+import { StrictMode, type ReactNode } from "react";
 import App from "@/App";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
@@ -15,6 +15,7 @@ import {
   useReregisterCurrentUser,
 } from "@/api/membership/queries";
 import { signOut, useSession } from "@/api/auth";
+import apiClient from "@/config/api-client";
 
 vi.mock("@/api/users/queries", () => ({
   useCurrentUser: vi.fn(),
@@ -49,6 +50,10 @@ vi.mock("@/api/auth", () => ({
   useSession: vi.fn(),
   signInWithGoogle: vi.fn(),
   signOut: vi.fn(),
+}));
+
+vi.mock("@/config/api-client", () => ({
+  default: { get: vi.fn() },
 }));
 
 const profile = {
@@ -100,6 +105,7 @@ function mockProfile(overrides = {}) {
 
 afterEach(cleanup);
 beforeEach(() => {
+  vi.mocked(apiClient.get).mockReset();
   mockProfile();
   vi.mocked(useUserRegistrationOptions).mockReturnValue({
     data: undefined,
@@ -135,7 +141,7 @@ beforeEach(() => {
   } as never);
 });
 
-function renderApp(ui: React.ReactNode) {
+function renderApp(ui: ReactNode) {
   return render(
     <QueryClientProvider client={new QueryClient()}>{ui}</QueryClientProvider>,
   );
@@ -188,6 +194,7 @@ test("renders the registration wizard and advances through the first step", asyn
   expect(screen.getByLabelText(/membership period/i)).toHaveAttribute(
     "readonly",
   );
+  expect(screen.getByLabelText(/membership period/i)).toHaveClass("block");
   expect(screen.getAllByText(/Step 1 of 4/)).not.toHaveLength(0);
   expect(
     screen.getByLabelText(/registration progress, step 1 of 4/i),
@@ -300,7 +307,8 @@ test("renders all current-period resources and the reregistration prompt", () =>
     "href",
     "/reregister",
   );
-  expect(screen.getByText(/pengurus period 2026\/2027/i)).toBeInTheDocument();
+  expect(screen.getByText(/member period 2026\/2027/i)).toBeInTheDocument();
+  expect(screen.queryByText(/pengurus/i)).not.toBeInTheDocument();
 });
 
 test("prefills and submits the reregistration flow", async () => {
@@ -549,6 +557,54 @@ test("does not trust a successful verification status without a token", () => {
   );
 
   expect(screen.getByText(/link unavailable/i)).toBeInTheDocument();
+});
+
+test("verifies an Outlook token once and shows success", async () => {
+  vi.mocked(apiClient.get).mockResolvedValueOnce({ data: { msg: "success" } });
+
+  renderApp(
+    <StrictMode>
+      <MemoryRouter initialEntries={["/verify-outlook?token=success-token"]}>
+        <App />
+      </MemoryRouter>
+    </StrictMode>,
+  );
+
+  expect(await screen.findByText(/email confirmed/i)).toBeInTheDocument();
+  expect(apiClient.get).toHaveBeenCalledTimes(1);
+  expect(apiClient.get).toHaveBeenCalledWith("/user/binus-email/verify", {
+    params: { token: "success-token" },
+  });
+});
+
+test("shows an invalid state for a rejected Outlook token", async () => {
+  vi.mocked(apiClient.get).mockRejectedValueOnce({
+    isAxiosError: true,
+    response: { status: 400 },
+  });
+
+  renderApp(
+    <MemoryRouter initialEntries={["/verify-outlook?token=invalid-token"]}>
+      <App />
+    </MemoryRouter>,
+  );
+
+  expect(await screen.findByText(/link unavailable/i)).toBeInTheDocument();
+});
+
+test("shows a retry option for a temporary verification failure", async () => {
+  vi.mocked(apiClient.get).mockRejectedValueOnce(new Error("Network error"));
+
+  renderApp(
+    <MemoryRouter initialEntries={["/verify-outlook?token=network-token"]}>
+      <App />
+    </MemoryRouter>,
+  );
+
+  expect(
+    await screen.findByText(/verification unavailable/i),
+  ).toBeInTheDocument();
+  expect(screen.getByText("Try again")).toBeInTheDocument();
 });
 
 test("shows BINUS verification and clears institution details when the path changes", async () => {

@@ -1,3 +1,4 @@
+import axios from "axios";
 import { CircleCheck, CircleX, LoaderCircle } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
@@ -7,10 +8,33 @@ import { gsap, useGSAP } from "@/lib/motion";
 import apiClient from "@/config/api-client";
 import { apiPaths } from "@/constants/api";
 
+type VerificationStatus = "loading" | "success" | "invalid" | "error";
+
+const verificationRequests = new Map<string, Promise<void>>();
+
+const verifyToken = (token: string) => {
+  const existingRequest = verificationRequests.get(token);
+  if (existingRequest) return existingRequest;
+
+  const request = apiClient
+    .get(apiPaths.verifyUserEmail, { params: { token } })
+    .then(() => undefined)
+    .catch((error: unknown) => {
+      verificationRequests.delete(token);
+      throw error;
+    });
+
+  verificationRequests.set(token, request);
+  return request;
+};
+
 export default function VerifyOutlookPage() {
   const [params] = useSearchParams();
   const token = params.get("token");
-  const [status, setStatus] = useState(token ? "loading" : "invalid");
+  const [status, setStatus] = useState<VerificationStatus>(
+    token ? "loading" : "invalid",
+  );
+  const [attempt, setAttempt] = useState(0);
   const spinnerRef = useRef<SVGSVGElement>(null);
   useGSAP(
     () => {
@@ -32,11 +56,16 @@ export default function VerifyOutlookPage() {
 
   useEffect(() => {
     if (!token) return;
-    apiClient
-      .get(apiPaths.verifyUserEmail, { params: { token } })
+    verifyToken(token)
       .then(() => setStatus("success"))
-      .catch(() => setStatus("invalid"));
-  }, [token]);
+      .catch((error: unknown) => {
+        setStatus(
+          axios.isAxiosError(error) && error.response?.status === 400
+            ? "invalid"
+            : "error",
+        );
+      });
+  }, [attempt, token]);
 
   if (status === "loading")
     return (
@@ -72,6 +101,31 @@ export default function VerifyOutlookPage() {
           </p>
           <Button asChild className="mt-7">
             <Link to="/reregister">Return to registration</Link>
+          </Button>
+        </section>
+      </AuthLayout>
+    );
+  if (status === "error")
+    return (
+      <AuthLayout>
+        <section className="auth-card rounded-3xl border border-white/80 bg-white/90 p-9 text-center shadow-xl">
+          <CircleX className="mx-auto size-12 text-red-500" />
+          <h1 className="mt-5 text-2xl font-bold text-brand-navy">
+            Verification unavailable
+          </h1>
+          <p className="mt-3 text-sm leading-6 text-brand-slate">
+            We could not verify your email right now. Check your connection and
+            try again.
+          </p>
+          <Button
+            type="button"
+            className="mt-7"
+            onClick={() => {
+              setStatus("loading");
+              setAttempt((current) => current + 1);
+            }}
+          >
+            Try again
           </Button>
         </section>
       </AuthLayout>

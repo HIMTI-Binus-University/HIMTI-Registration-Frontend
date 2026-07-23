@@ -637,7 +637,7 @@ export default function RegisterPage({
           </h1>
           <p className="mt-4 text-sm leading-6 text-brand-slate">
             {reregister
-              ? "Your membership details have been submitted for the new pengurus period."
+              ? "Your membership details have been submitted for the new member period."
               : "Your registration is complete. You can now access your member information and community contacts."}
           </p>
           <Button asChild className="mt-8">
@@ -789,7 +789,7 @@ export default function RegisterPage({
                     }
                     readOnly
                     aria-describedby="membership-period-help"
-                    className="mt-2 h-11 w-full rounded-xl border border-brand-blue/15 bg-slate-100 px-3 text-sm font-medium text-brand-slate outline-none sm:max-w-sm"
+                    className="mt-2 block h-11 w-full rounded-xl border border-brand-blue/15 bg-slate-100 px-3 text-sm font-medium text-brand-slate outline-none sm:max-w-sm"
                   />
                 </label>
                 <p
