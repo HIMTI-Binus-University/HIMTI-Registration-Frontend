@@ -225,6 +225,30 @@ test("renders the HIMTI landing page", () => {
   );
 });
 
+test("keeps the landing page public when an incomplete user has a session", () => {
+  vi.mocked(useSession).mockReturnValue({
+    data: {
+      user: { id: "user-1", name: "HIMTI Member", email: "member@example.com" },
+      session: { id: "session-1", expiresAt: "2026-08-01T00:00:00.000Z" },
+    },
+    isPending: false,
+    isError: false,
+  } as never);
+
+  renderApp(
+    <MemoryRouter initialEntries={["/"]}>
+      <App />
+    </MemoryRouter>,
+  );
+
+  expect(
+    screen.getByRole("heading", { name: /join once/i }),
+  ).toBeInTheDocument();
+  expect(
+    screen.queryByRole("heading", { name: /tell us about yourself/i }),
+  ).toBeNull();
+});
+
 test("renders the registration wizard and advances through the first step", async () => {
   const user = userEvent.setup();
   renderApp(
@@ -630,7 +654,7 @@ test("restores, changes, and submits the reregistration position", async () => {
   );
 });
 
-test("redirects authenticated users from root to the dashboard", async () => {
+test("keeps the landing page public for registered users", () => {
   vi.mocked(useSession).mockReturnValue({
     data: { user: { id: "user-1" } },
     isPending: false,
@@ -646,8 +670,9 @@ test("redirects authenticated users from root to the dashboard", async () => {
   );
 
   expect(
-    await screen.findByRole("heading", { name: "HIMTI Member" }),
+    screen.getByRole("heading", { name: /join once/i }),
   ).toBeInTheDocument();
+  expect(screen.queryByRole("heading", { name: "HIMTI Member" })).toBeNull();
 });
 
 test("logs out from the dashboard", async () => {
