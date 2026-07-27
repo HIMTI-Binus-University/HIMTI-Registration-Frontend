@@ -208,21 +208,25 @@ test("renders the HIMTI landing page", () => {
     screen.getByRole("heading", { name: /join once/i }),
   ).toBeInTheDocument();
   expect(
-    screen.getByText(
-      /register as a himti member to unlock event registration/i,
-    ),
+    screen.getByText(/register as a himti member and become part/i),
   ).toBeInTheDocument();
-  expect(
-    screen.getAllByRole("link", { name: /register|start registration/i }),
-  ).toHaveLength(2);
+  expect(screen.getAllByRole("link", { name: /join himti/i })).toHaveLength(2);
   expect(screen.getByRole("link", { name: /log in/i })).toHaveAttribute(
     "href",
     "/login",
   );
-  expect(screen.getByRole("link", { name: /discover himti/i })).toHaveAttribute(
+  expect(screen.getByRole("link", { name: /explore himti/i })).toHaveAttribute(
     "href",
     "https://ofog.himtibinus.or.id",
   );
+  expect(
+    screen.getByRole("img", { name: /himti students gathering/i }),
+  ).toHaveAttribute("src", "/events/event1.jpg");
+  expect(screen.getAllByRole("img")).toHaveLength(5);
+  expect(screen.getByText("Workshop")).toBeInTheDocument();
+  expect(screen.getByText("Competitions")).toBeInTheDocument();
+  expect(screen.getByText("Seminars")).toBeInTheDocument();
+  expect(screen.getByText("Welcoming Party")).toBeInTheDocument();
 });
 
 test("renders the registration wizard and advances through the first step", async () => {

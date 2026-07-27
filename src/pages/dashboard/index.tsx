@@ -84,19 +84,17 @@ export default function DashboardPage() {
             to="/"
             className="flex items-center gap-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
           >
-            <span className="grid size-10 place-items-center overflow-hidden rounded-xl bg-brand-navy p-1.5">
-              <img
-                src="/himti-icon.svg"
-                alt=""
-                className="size-full object-contain"
-              />
-            </span>
+            <img
+              src="/icon-primary.svg"
+              alt=""
+              className="size-10 shrink-0 object-contain"
+            />
             <span className="leading-tight">
               <span className="block text-sm font-bold text-brand-ink">
-                HIMTI
+                HIMTI BINUS
               </span>
               <span className="block text-[11px] font-medium text-brand-slate">
-                Member dashboard
+                Registrations
               </span>
             </span>
           </Link>
@@ -135,12 +133,9 @@ export default function DashboardPage() {
                 {initials}
               </span>
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-brand-sky">
-                  {user.status}
-                </p>
                 <h1
                   id="profile-title"
-                  className="mt-1 truncate text-2xl font-bold tracking-[-0.03em] sm:text-3xl"
+                  className="truncate text-2xl font-bold tracking-[-0.03em] sm:text-3xl"
                 >
                   {user.name}
                 </h1>
