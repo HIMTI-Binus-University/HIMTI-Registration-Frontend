@@ -1,31 +1,85 @@
-import { ArrowRight, CalendarDays, Check, Ticket, Users } from "lucide-react";
+import { ArrowRight, Search } from "lucide-react";
 import { useRef } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { gsap, motionEase, useGSAP } from "@/lib/motion";
 
+const eventPhotos = [
+  {
+    src: "/events/event1.jpg",
+    alt: "HIMTI students gathering together at a community event",
+    className: "collage-photo collage-photo-center",
+  },
+  {
+    src: "/events/event2.jpg",
+    alt: "A large HIMTI student gathering outdoors",
+    className: "collage-photo collage-photo-top-left",
+  },
+  {
+    src: "/events/event3.jpg",
+    alt: "Students taking part in a HIMTI team activity",
+    className: "collage-photo collage-photo-top-right",
+  },
+  {
+    src: "/events/event5.jpg",
+    alt: "Students celebrating at a HIMTI welcoming party",
+    className: "collage-photo collage-photo-bottom-left",
+  },
+  {
+    src: "/events/event6.jpg",
+    alt: "HIMTI seminar attendees gathered in a lecture hall",
+    className: "collage-photo collage-photo-bottom-right",
+  },
+];
+
 function Brand() {
   return (
     <Link
       to="/"
-      className="flex items-center gap-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+      className="flex min-w-0 items-center gap-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 sm:gap-3"
     >
-      <span className="grid size-10 place-items-center overflow-hidden rounded-xl bg-brand-navy p-1.5 shadow-sm">
-        <img
-          src="/himti-icon.svg"
-          alt=""
-          className="size-full object-contain"
-        />
-      </span>
+      <img
+        src="/icon-primary.svg"
+        alt=""
+        className="size-8 shrink-0 object-contain sm:size-10"
+      />
       <span className="leading-tight">
-        <span className="block text-sm font-bold tracking-tight text-brand-ink">
-          HIMTI
+        <span className="block whitespace-nowrap text-xs font-bold tracking-tight text-brand-ink sm:text-sm">
+          HIMTI BINUS
         </span>
-        <span className="block text-[11px] font-medium text-brand-slate">
-          BINUS University
+        <span className="block text-[10px] font-medium text-brand-slate sm:text-[11px]">
+          Registrations
         </span>
       </span>
     </Link>
+  );
+}
+
+function EventCollage() {
+  return (
+    <div
+      className="event-collage order-first md:order-none"
+      aria-label="HIMTI student experiences"
+    >
+      {eventPhotos.map(({ src, alt, className }, index) => (
+        <figure key={src} className={className}>
+          <img
+            src={src}
+            alt={alt}
+            loading={index === 0 ? "eager" : "lazy"}
+            decoding="async"
+          />
+        </figure>
+      ))}
+      <span className="collage-label collage-label-workshop">Workshop</span>
+      <span className="collage-label collage-label-competitions">
+        Competitions
+      </span>
+      <span className="collage-label collage-label-seminars">Seminars</span>
+      <span className="collage-label collage-label-welcoming">
+        Welcoming Party
+      </span>
+    </div>
   );
 }
 
@@ -35,55 +89,55 @@ export default function HomePage() {
   useGSAP(
     () => {
       const mm = gsap.matchMedia();
-      mm.add(
-        "(prefers-reduced-motion: no-preference)",
-        () => {
-          gsap
-            .timeline({ delay: 0.12, defaults: { ease: motionEase } })
-            .from("nav", { y: -16, autoAlpha: 0, duration: 0.5 })
-            .from(
-              ".hero-copy > *",
-              { y: 22, autoAlpha: 0, duration: 0.65, stagger: 0.09 },
-              "-=0.25",
-            )
-            .from(
-              ".hero-scene",
-              { scale: 0.94, rotate: 2, autoAlpha: 0, duration: 0.85 },
-              "-=0.5",
-            )
-            .from(
-              ".orbit-item",
-              { scale: 0.7, autoAlpha: 0, duration: 0.5, stagger: 0.1 },
-              "-=0.4",
-            );
 
-          gsap.to(".orbit-one", {
-            y: -12,
-            rotate: -2,
-            duration: 3.2,
-            repeat: -1,
-            yoyo: true,
-            ease: "sine.inOut",
-          });
-          gsap.to(".orbit-two", {
-            y: 10,
-            rotate: 3,
-            duration: 3.8,
-            repeat: -1,
-            yoyo: true,
-            ease: "sine.inOut",
-          });
-          gsap.to(".hero-halo", {
-            scale: 1.08,
-            opacity: 0.65,
-            duration: 2.8,
-            repeat: -1,
-            yoyo: true,
-            ease: "sine.inOut",
-          });
-        },
-        pageRef,
-      );
+      mm.add("(prefers-reduced-motion: no-preference)", () => {
+        gsap
+          .timeline({ delay: 0.12, defaults: { ease: motionEase } })
+          .from("nav", { y: -10, autoAlpha: 0, duration: 0.45 })
+          .from(
+            ".collage-photo",
+            {
+              y: 10,
+              scale: 0.98,
+              autoAlpha: 0,
+              duration: 0.6,
+              stagger: 0.05,
+            },
+            "-=0.25",
+          )
+          .from(
+            ".collage-label",
+            { scale: 0.96, autoAlpha: 0, duration: 0.35, stagger: 0.05 },
+            "-=0.25",
+          )
+          .from(
+            ".hero-copy > *",
+            { y: 12, autoAlpha: 0, duration: 0.55, stagger: 0.07 },
+            "-=0.35",
+          );
+
+        gsap.to(".collage-photo-top-left, .collage-photo-bottom-right", {
+          y: -2,
+          duration: 5.5,
+          repeat: -1,
+          yoyo: true,
+          ease: "sine.inOut",
+        });
+        gsap.to(".collage-photo-top-right, .collage-photo-bottom-left", {
+          y: 2,
+          duration: 6.3,
+          repeat: -1,
+          yoyo: true,
+          ease: "sine.inOut",
+        });
+        gsap.to(".collage-photo-center", {
+          y: -1,
+          duration: 7,
+          repeat: -1,
+          yoyo: true,
+          ease: "sine.inOut",
+        });
+      });
     },
     { scope: pageRef },
   );
@@ -91,114 +145,72 @@ export default function HomePage() {
   return (
     <div
       ref={pageRef}
-      className="home-page relative h-dvh overflow-hidden bg-background text-brand-ink"
+      className="home-page relative min-h-dvh overflow-x-hidden bg-background text-brand-ink"
     >
       <div aria-hidden="true" className="hero-wash absolute inset-0" />
 
-      <header className="absolute inset-x-0 top-0 z-20 px-4 pt-4 sm:px-6 sm:pt-6">
+      <header className="home-header relative z-20 px-3 pt-3 sm:px-6 sm:pt-6">
         <nav
           aria-label="Main navigation"
-          className="mx-auto flex max-w-6xl items-center justify-between rounded-2xl bg-white/85 px-3 py-3 shadow-[0_6px_24px_-14px_rgba(0,33,79,0.45)] backdrop-blur-xl sm:px-5"
+          className="mx-auto flex max-w-6xl items-center justify-between gap-2 rounded-2xl bg-white/90 px-2.5 py-2.5 shadow-[0_6px_8px_-6px_rgba(0,33,79,0.35)] backdrop-blur-xl sm:px-5 sm:py-3"
         >
           <Brand />
-          <div className="flex items-center gap-1 sm:gap-2">
+          <div className="flex shrink-0 items-center gap-0.5 sm:gap-2">
             <Button
               asChild
               variant="outline"
-              className="h-11 border-0 px-3 text-brand-blue sm:px-4"
+              className="h-9 border-0 px-2 text-xs text-brand-blue sm:h-11 sm:px-4 sm:text-sm"
             >
               <Link to="/login">Log in</Link>
             </Button>
-            <Button asChild className="h-11 px-3 sm:px-5">
+            <Button
+              asChild
+              className="h-9 px-2.5 text-xs sm:h-11 sm:px-5 sm:text-sm"
+            >
               <Link to="/register">
-                Register <ArrowRight className="ml-2 hidden size-4 sm:block" />
+                Join HIMTI
+                <ArrowRight className="ml-2 hidden size-4 sm:block" />
               </Link>
             </Button>
           </div>
         </nav>
       </header>
 
-      <main className="relative z-10 mx-auto flex h-full max-w-6xl items-center px-5 pb-5 pt-24 sm:px-6 sm:pb-8 sm:pt-28 lg:px-8">
-        <section className="grid w-full items-center gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:gap-14">
+      <main className="home-main relative z-10 mx-auto flex max-w-6xl items-center px-5 py-8 sm:px-6 sm:py-10 md:min-h-[calc(100dvh-6rem)] md:px-8 md:py-12">
+        <section className="home-hero grid w-full items-center gap-7 sm:gap-10 md:grid-cols-[0.94fr_1.06fr] md:gap-8 xl:gap-16">
           <div className="hero-copy max-w-2xl">
-            <p className="inline-flex items-center gap-2 rounded-full bg-brand-pale px-3 py-2 text-xs font-bold text-brand-blue sm:px-4 sm:text-sm">
-              <span className="size-2 rounded-full bg-brand-blue" />
-              Your pass to every HIMTI event
-            </p>
-            <h1 className="mt-5 text-balance text-[clamp(2.65rem,7vw,5.4rem)] font-bold leading-[0.98] tracking-[-0.04em] text-brand-navy sm:mt-7">
+            <h1 className="hero-heading text-balance text-[clamp(2rem,6.5vw,5.4rem)] font-bold leading-[0.98] tracking-[-0.04em] text-brand-navy">
               Join once.
               <br />
               Show up for <span className="text-brand-blue">more.</span>
             </h1>
-            <p className="mt-5 max-w-xl text-pretty text-base leading-7 text-brand-slate sm:mt-7 sm:text-xl sm:leading-8">
-              Register as a HIMTI member to unlock event registration, new
-              experiences, and your place in the community.
+            <p className="hero-description mt-3 max-w-xl text-pretty text-[13px] leading-5 text-brand-slate sm:mt-5 sm:text-base sm:leading-7 md:mt-7 md:text-lg md:leading-8">
+              Register as a HIMTI member and become part of a community where
+              students learn, connect, and create unforgettable experiences
+              together.
             </p>
-            <div className="mt-7 flex flex-col gap-3 sm:mt-9 sm:flex-row">
+            <div className="hero-actions mt-3 flex gap-2 sm:mt-6 sm:gap-3 md:mt-9">
               <Button
                 asChild
                 variant="outline"
-                className="min-h-12 w-full border-brand-blue/20 bg-white/70 px-7 text-base text-brand-navy sm:w-auto"
+                className="h-10 min-h-0 flex-1 border-brand-blue/20 bg-white/70 px-3 text-sm text-brand-navy sm:h-12 sm:flex-none sm:px-7 sm:text-base"
               >
-                <a href="https://ofog.himtibinus.or.id">Discover HIMTI</a>
+                <a href="https://ofog.himtibinus.or.id">
+                  <Search className="mr-2 size-4" /> Explore HIMTI
+                </a>
               </Button>
               <Button
                 asChild
-                className="min-h-12 w-full px-7 text-base shadow-[0_8px_20px_-10px_rgba(0,91,204,0.9)] sm:w-auto"
+                className="h-10 min-h-0 flex-1 px-3 text-sm sm:h-12 sm:flex-none sm:px-7 sm:text-base"
               >
                 <Link to="/register">
-                  Start registration <ArrowRight className="ml-2 size-5" />
+                  Join HIMTI <ArrowRight className="ml-2 size-5" />
                 </Link>
               </Button>
             </div>
           </div>
 
-          <div
-            className="hero-scene relative mx-auto hidden aspect-square w-full max-w-[480px] lg:block"
-            aria-hidden="true"
-          >
-            <div className="hero-halo absolute inset-[8%] rounded-full bg-brand-sky/25 blur-3xl" />
-            <div className="absolute inset-[12%] rounded-full border border-brand-blue/10" />
-            <div className="absolute inset-[23%] rounded-full border border-dashed border-brand-blue/20" />
-
-            <div className="absolute inset-[22%] grid place-items-center rounded-full bg-brand-navy text-center text-white shadow-[0_28px_70px_-28px_rgba(0,33,79,0.7)]">
-              <div>
-                <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-brand-blue">
-                  <Users className="size-7" />
-                </span>
-                <p className="mt-5 text-sm font-semibold text-brand-sky">
-                  HIMTI membership
-                </p>
-                <p className="mt-1 text-2xl font-bold">Your starting point</p>
-                <p className="mx-auto mt-3 flex w-fit items-center gap-2 text-sm text-blue-100">
-                  <Check className="size-4" /> Register once
-                </p>
-              </div>
-            </div>
-
-            <div className="orbit-item orbit-one absolute left-0 top-[18%] flex items-center gap-3 rounded-2xl bg-white px-4 py-3 shadow-[0_8px_28px_-12px_rgba(0,33,79,0.35)]">
-              <span className="grid size-10 place-items-center rounded-xl bg-brand-pale text-brand-blue">
-                <CalendarDays className="size-5" />
-              </span>
-              <span>
-                <span className="block text-xs font-semibold text-brand-slate">
-                  Next step
-                </span>
-                <span className="block font-bold text-brand-navy">
-                  Choose an event
-                </span>
-              </span>
-            </div>
-            <div className="orbit-item orbit-two absolute bottom-[14%] right-0 flex items-center gap-3 rounded-2xl bg-brand-blue px-4 py-3 text-white shadow-[0_10px_28px_-12px_rgba(0,91,204,0.7)]">
-              <Ticket className="size-6 text-brand-sky" />
-              <span>
-                <span className="block text-xs font-semibold text-blue-100">
-                  Member access
-                </span>
-                <span className="block font-bold">Event unlocked</span>
-              </span>
-            </div>
-          </div>
+          <EventCollage />
         </section>
       </main>
     </div>
