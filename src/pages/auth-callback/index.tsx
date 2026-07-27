@@ -52,7 +52,7 @@ export default function AuthCallbackPage() {
   if (profile.isError)
     return (
       <AuthLayout>
-        <section className="rounded-3xl border border-white/80 bg-white/90 p-9 text-center shadow-xl">
+        <section className="p-6 text-center sm:p-9">
           <h1 className="text-xl font-bold text-brand-navy">
             Account check failed
           </h1>
@@ -72,10 +72,7 @@ export default function AuthCallbackPage() {
 
   return (
     <AuthLayout>
-      <section
-        className="rounded-3xl border border-white/80 bg-white/90 p-9 text-center shadow-xl"
-        aria-live="polite"
-      >
+      <section className="p-6 text-center sm:p-9" aria-live="polite">
         <LoaderCircle
           ref={spinnerRef}
           className="mx-auto size-7 text-brand-blue"

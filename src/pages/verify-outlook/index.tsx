@@ -72,10 +72,7 @@ export default function VerifyOutlookPage() {
   if (status === "loading")
     return (
       <AuthLayout>
-        <section
-          className="auth-card rounded-3xl border border-white/80 bg-white/90 p-9 text-center shadow-xl"
-          aria-live="polite"
-        >
+        <section className="p-6 text-center sm:p-9" aria-live="polite">
           <LoaderCircle
             ref={spinnerRef}
             className="mx-auto size-8 text-brand-blue"
@@ -92,7 +89,7 @@ export default function VerifyOutlookPage() {
   if (status === "invalid")
     return (
       <AuthLayout>
-        <section className="auth-card rounded-3xl border border-white/80 bg-white/90 p-9 text-center shadow-xl">
+        <section className="p-6 text-center sm:p-9">
           <CircleX className="mx-auto size-12 text-red-500" />
           <h1 className="mt-5 text-2xl font-bold text-brand-navy">
             Link unavailable
@@ -110,7 +107,7 @@ export default function VerifyOutlookPage() {
   if (status === "error")
     return (
       <AuthLayout>
-        <section className="auth-card rounded-3xl border border-white/80 bg-white/90 p-9 text-center shadow-xl">
+        <section className="p-6 text-center sm:p-9">
           <CircleX className="mx-auto size-12 text-red-500" />
           <h1 className="mt-5 text-2xl font-bold text-brand-navy">
             Verification unavailable
@@ -135,7 +132,7 @@ export default function VerifyOutlookPage() {
 
   return (
     <AuthLayout>
-      <section className="auth-card rounded-3xl border border-white/80 bg-white/90 p-9 text-center shadow-xl">
+      <section className="p-6 text-center sm:p-9">
         <CircleCheck className="mx-auto size-12 text-brand-blue" />
         <h1 className="mt-5 text-2xl font-bold text-brand-navy">
           Email confirmed
