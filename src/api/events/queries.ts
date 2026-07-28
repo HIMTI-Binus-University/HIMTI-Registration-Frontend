@@ -24,7 +24,7 @@ export type MemberSubevent = {
   position: number;
   price: number;
   maxParticipants: number | null;
-  isRegistrationOpen: boolean;
+  status: "OPEN" | "CLOSED" | "CANCELLED";
 };
 
 export function usePublishedEvents() {

@@ -20,6 +20,13 @@ Second line
     expect(container.querySelector("br")).toBeInTheDocument();
   });
 
+  it("renders asterisks as italic emphasis", () => {
+    render(<ResourceMarkdown>{"*Italic text*"}</ResourceMarkdown>);
+
+    expect(screen.getByText("Italic text")).toHaveClass("italic");
+    expect(screen.getByText("Italic text").tagName).toBe("EM");
+  });
+
   it("allows only safe external links", () => {
     render(
       <ResourceMarkdown>
