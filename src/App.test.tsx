@@ -108,8 +108,8 @@ const publishedEvent = {
       destinationUrl: "javascript:alert(1)",
       position: 2,
       price: 0,
-      maxParticipants: null,
-      isRegistrationOpen: false,
+       maxParticipants: null,
+        status: "CLOSED",
     },
     {
       id: "subevent-1",
@@ -123,8 +123,8 @@ const publishedEvent = {
       destinationUrl: "https://registration.example.com/workshop",
       position: 1,
       price: 25000,
-      maxParticipants: 40,
-      isRegistrationOpen: true,
+       maxParticipants: 40,
+        status: "OPEN",
     },
   ],
 };
@@ -342,7 +342,7 @@ test("renders compact event cards that open internal detail pages", () => {
   expect(screen.queryByText("Future Web Workshop")).toBeNull();
 });
 
-test("renders ordered event activities and only safe destination CTAs", () => {
+test("renders ordered sub-events with clear registration and location states", () => {
   mockProfile({
     registrationCompleted: true,
     registrationCompletedAt: "2026-07-21T00:00:00.000Z",
@@ -371,8 +371,18 @@ test("renders ordered event activities and only safe destination CTAs", () => {
   expect(destination).toHaveAttribute("target", "_blank");
   expect(destination).toHaveAttribute("rel", "noopener noreferrer");
   expect(screen.getAllByRole("link", { name: /^register/i })).toHaveLength(1);
-  expect(screen.queryByText(/registration closed/i)).not.toBeInTheDocument();
-  expect(screen.queryByRole("link", { name: /binus anggrek/i })).toBeNull();
+  expect(screen.getByRole("button", { name: /^register/i })).toBeDisabled();
+  expect(screen.getByRole("link", { name: /binus alam sutera/i })).toHaveAttribute(
+    "href",
+    "https://maps.example.com/showcase",
+  );
+  expect(screen.getByRole("link", { name: /back to dashboard/i })).toHaveAttribute(
+    "href",
+    "/dashboard",
+  );
+  expect(screen.getByRole("button", { name: /logout/i })).toBeInTheDocument();
+  expect(screen.queryByText(/published event/i)).not.toBeInTheDocument();
+  expect(screen.queryByText(/^program$/i)).not.toBeInTheDocument();
 });
 
 test("supports event loading, retryable error, and not-found states", async () => {
