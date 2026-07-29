@@ -6,34 +6,39 @@ import {
   Pencil,
   Send,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-
-type UserType = "Student" | "Lecturer" | "Other";
-type InstitutionType = "BINUS" | "Non-BINUS";
-type RegistrationData = {
-  userType: UserType | "";
-  institutionType: InstitutionType | "";
-  name: string;
-  phone: string;
-  personalEmail: string;
-  lineId: string;
-  nim: string;
-  batch: string;
-  binusEmail: string;
-  region: string;
-  major: string;
-  university: string;
-  institution: string;
-  studentId: string;
-  department: string;
-  affiliation: string;
-};
+import {
+  useCompleteCurrentUserProfile,
+  useCurrentUser,
+  useSendUserEmailVerification,
+  useUserRegistrationOptions,
+} from "@/api/users/queries";
+import {
+  useMembershipStatus,
+  useReregisterCurrentUser,
+} from "@/api/membership/queries";
+import type { UserRegistrationOptions } from "@/api/users/queries";
+import {
+  buildRegistrationPayload,
+  type InstitutionType,
+  type MembershipPosition,
+  type MembershipPositionValue,
+  type RegistrationData,
+  type UserType,
+} from "@/pages/register/payload";
+import {
+  clearRegistrationDraft,
+  readRegistrationDraft,
+  writeRegistrationDraft,
+} from "@/pages/register/draft";
+import axios from "axios";
 
 const initialData: RegistrationData = {
   userType: "",
   institutionType: "",
+  membershipPosition: "Member",
   name: "",
   phone: "",
   personalEmail: "",
@@ -45,28 +50,11 @@ const initialData: RegistrationData = {
   major: "",
   university: "",
   institution: "",
-  studentId: "",
   department: "",
   affiliation: "",
 };
 
 const steps = ["Your path", "About you", "Your institution", "Review"];
-const regions = [
-  "Kemanggisan",
-  "Alam Sutera",
-  "Bekasi",
-  "Bandung",
-  "Malang",
-  "Other",
-];
-const binusMajors = [
-  "Computer Science",
-  "Cyber Security",
-  "Data Science",
-  "Game Application and Technology",
-  "Information Systems",
-  "Information Technology",
-];
 const institutionKeys: Array<keyof RegistrationData> = [
   "nim",
   "batch",
@@ -75,10 +63,29 @@ const institutionKeys: Array<keyof RegistrationData> = [
   "major",
   "university",
   "institution",
-  "studentId",
   "department",
   "affiliation",
 ];
+
+const membershipPositions: Array<{
+  display: MembershipPosition;
+  value: MembershipPositionValue;
+}> = [
+  { display: "Officer", value: "OFFICER" },
+  { display: "Staff", value: "STAFF" },
+  { display: "Member", value: "MEMBER" },
+];
+
+const displayMembershipPosition = (
+  value: MembershipPositionValue | null | undefined,
+): MembershipPosition | "" =>
+  membershipPositions.find((position) => position.value === value)?.display ??
+  "";
+
+type VerificationNotice = {
+  type: "success" | "info" | "error";
+  message: string;
+} | null;
 
 function Field({
   label,
@@ -88,6 +95,7 @@ function Field({
   required = true,
   type = "text",
   placeholder,
+  readOnly = false,
 }: {
   label: string;
   name: keyof RegistrationData;
@@ -96,6 +104,7 @@ function Field({
   required?: boolean;
   type?: string;
   placeholder?: string;
+  readOnly?: boolean;
 }) {
   return (
     <label className="block text-sm font-semibold text-brand-ink">
@@ -112,9 +121,10 @@ function Field({
         type={type}
         value={value}
         required={required}
+        readOnly={readOnly}
         placeholder={placeholder}
         onChange={(event) => onChange(name, event.target.value)}
-        className="mt-2 h-11 w-full rounded-xl border border-brand-blue/15 bg-white px-3 text-sm font-medium text-brand-ink outline-none transition focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/15"
+        className="mt-2 h-11 w-full rounded-xl border border-brand-blue/15 bg-white px-3 text-sm font-medium text-brand-ink outline-none transition focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/15 read-only:bg-slate-100 read-only:text-brand-slate"
       />
     </label>
   );
@@ -130,7 +140,7 @@ function SelectField({
   label: string;
   name: keyof RegistrationData;
   value: string;
-  options: string[];
+  options: Array<{ value: string; label: string }>;
   onChange: (name: keyof RegistrationData, value: string) => void;
 }) {
   return (
@@ -151,7 +161,9 @@ function SelectField({
         >
           <option value="">Choose one</option>
           {options.map((option) => (
-            <option key={option}>{option}</option>
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
           ))}
         </select>
         <ChevronDown className="pointer-events-none absolute right-3 top-3 size-5 text-brand-slate" />
@@ -164,16 +176,19 @@ function Choice({
   label,
   selected,
   onClick,
+  disabled = false,
 }: {
   label: string;
   selected: boolean;
   onClick: () => void;
+  disabled?: boolean;
 }) {
   return (
     <button
       type="button"
       aria-pressed={selected}
       onClick={onClick}
+      disabled={disabled}
       className={`rounded-2xl border p-4 text-left transition focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${selected ? "border-brand-blue bg-brand-pale text-brand-blue shadow-sm" : "border-brand-blue/15 bg-white hover:border-brand-blue/40"}`}
     >
       <span className="flex items-center justify-between font-bold">
@@ -188,7 +203,11 @@ function Choice({
   );
 }
 
-export default function RegisterPage() {
+export default function RegisterPage({
+  reregister = false,
+}: {
+  reregister?: boolean;
+}) {
   const [step, setStep] = useState(0);
   const [data, setData] = useState(initialData);
   const [errors, setErrors] = useState<string[]>([]);
@@ -196,7 +215,150 @@ export default function RegisterPage() {
   const [pathNotice, setPathNotice] = useState("");
   const [emailVerified, setEmailVerified] = useState(false);
   const [verificationSent, setVerificationSent] = useState(false);
+  const [verificationChecking, setVerificationChecking] = useState(false);
+  const [verificationNotice, setVerificationNotice] =
+    useState<VerificationNotice>(null);
+  const [draftReady, setDraftReady] = useState(false);
+  const hydratedProfile = useRef(false);
   const firstError = useRef<HTMLDivElement>(null);
+  const profile = useCurrentUser();
+  const options = useUserRegistrationOptions();
+  const membershipStatus = useMembershipStatus();
+  const completeProfile = useCompleteCurrentUserProfile();
+  const reregisterProfile = useReregisterCurrentUser();
+  const sendVerification = useSendUserEmailVerification();
+  const saveProfile = reregister ? reregisterProfile : completeProfile;
+  const membershipPeriod = reregister
+    ? membershipStatus.data?.availablePeriod
+    : membershipStatus.data?.activePeriod;
+  const draftContext = useMemo(
+    () =>
+      profile.data
+        ? {
+            userId: profile.data.id,
+            mode: reregister ? ("reregister" as const) : ("register" as const),
+            membershipPeriodId: membershipPeriod?.id ?? null,
+          }
+        : null,
+    [membershipPeriod?.id, profile.data, reregister],
+  );
+
+  useEffect(() => {
+    const user = profile.data;
+    if (
+      !user ||
+      !draftContext ||
+      membershipStatus.isPending ||
+      (reregister && !options.data)
+    )
+      return;
+    if (!hydratedProfile.current) {
+      hydratedProfile.current = true;
+      const profileData: RegistrationData = {
+        userType:
+          user.memberType === "STUDENT"
+            ? "Student"
+            : user.memberType === "LECTURER"
+              ? "Lecturer"
+              : user.memberType === "OTHER"
+                ? "Other"
+                : "",
+        institutionType:
+          user.institutionType === "BINUS"
+            ? "BINUS"
+            : user.institutionType === "NON_BINUS"
+              ? "Non-BINUS"
+              : "",
+        membershipPosition: reregister
+          ? displayMembershipPosition(membershipStatus.data?.currentPosition)
+          : "Member",
+        name: user.name,
+        personalEmail: user.email,
+        phone: user.phoneNumber ?? "",
+        lineId: user.lineId ?? "",
+        nim: user.nim ?? "",
+        batch: user.graduateBatch ?? "",
+        binusEmail: user.outlookEmail ?? "",
+        region:
+          !reregister ||
+          options.data?.binusRegions.some(
+            (region) => region.id === user.regionId,
+          )
+            ? (user.regionId ?? "")
+            : "",
+        major:
+          user.institutionType === "BINUS"
+            ? !reregister ||
+              options.data?.studyPrograms.some(
+                (program) => program.id === user.studyProgramId,
+              )
+              ? (user.studyProgramId ?? "")
+              : ""
+            : (user.studyProgramName ?? ""),
+        university: user.university?.name ?? user.universityName ?? "",
+        institution: user.universityName ?? user.university?.name ?? "",
+        department: user.department ?? "",
+        affiliation: user.affiliation ?? "",
+      };
+      const draft = readRegistrationDraft(draftContext);
+      const restoredData = draft
+        ? { ...profileData, ...draft.data, personalEmail: user.email }
+        : profileData;
+      if (!reregister) restoredData.membershipPosition = "Member";
+
+      if (draft && restoredData.institutionType === "BINUS" && options.data) {
+        if (
+          restoredData.region &&
+          !options.data.binusRegions.some(
+            (region) => region.id === restoredData.region,
+          )
+        )
+          restoredData.region = "";
+        if (
+          restoredData.userType === "Student" &&
+          restoredData.major &&
+          !options.data.studyPrograms.some(
+            (program) => program.id === restoredData.major,
+          )
+        )
+          restoredData.major = "";
+      }
+
+      setData(restoredData);
+      setStep(draft?.step ?? 0);
+      setVerificationSent(
+        Boolean(
+          draft?.verificationSentFor &&
+          draft.verificationSentFor.toLowerCase() ===
+            restoredData.binusEmail.toLowerCase(),
+        ),
+      );
+      setEmailVerified(
+        Boolean(
+          user.outlookEmailVerified &&
+          user.outlookEmail?.toLowerCase() ===
+            restoredData.binusEmail.toLowerCase(),
+        ),
+      );
+      setDraftReady(true);
+    }
+  }, [
+    draftContext,
+    membershipStatus.isPending,
+    membershipStatus.data?.currentPosition,
+    options.data,
+    profile.data,
+    reregister,
+  ]);
+
+  useEffect(() => {
+    if (!draftReady || !draftContext || submitted) return;
+    writeRegistrationDraft(draftContext, {
+      step,
+      data,
+      verificationSentFor: verificationSent ? data.binusEmail : null,
+    });
+  }, [data, draftContext, draftReady, step, submitted, verificationSent]);
 
   useEffect(() => {
     if (errors.length) firstError.current?.focus();
@@ -204,11 +366,58 @@ export default function RegisterPage() {
   const resetVerification = () => {
     setVerificationSent(false);
     setEmailVerified(false);
+    setVerificationNotice(null);
   };
   const update = (name: keyof RegistrationData, value: string) => {
     setData((current) => ({ ...current, [name]: value }));
     if (name === "binusEmail") resetVerification();
     setErrors([]);
+  };
+
+  const sendVerificationLink = () => {
+    setVerificationNotice(null);
+    sendVerification.mutate(data.binusEmail, {
+      onSuccess: () => {
+        setVerificationSent(true);
+        setVerificationNotice({
+          type: "info",
+          message: `A new verification link was sent to ${data.binusEmail}.`,
+        });
+      },
+      onError: () =>
+        setVerificationNotice({
+          type: "error",
+          message:
+            "We could not send the verification link. Check your connection and try again.",
+        }),
+    });
+  };
+
+  const checkVerificationStatus = async () => {
+    setVerificationChecking(true);
+    setVerificationNotice(null);
+    try {
+      const { data: user } = await profile.refetch({ throwOnError: true });
+      const verified = Boolean(
+        user?.outlookEmailVerified &&
+        user.outlookEmail?.toLowerCase() === data.binusEmail.toLowerCase(),
+      );
+      setEmailVerified(verified);
+      setVerificationNotice({
+        type: verified ? "success" : "info",
+        message: verified
+          ? "Your BINUS email has been verified."
+          : "Your BINUS email has not been verified yet. Open the latest verification link, then check again.",
+      });
+    } catch {
+      setVerificationNotice({
+        type: "error",
+        message:
+          "We could not check your verification status. Check your connection and try again.",
+      });
+    } finally {
+      setVerificationChecking(false);
+    }
   };
   const changePath = (
     name: "userType" | "institutionType",
@@ -257,8 +466,8 @@ export default function RegisterPage() {
               type="button"
               variant="outline"
               className="mt-4 min-h-11 w-full bg-white sm:w-auto"
-              disabled={!data.binusEmail}
-              onClick={() => setVerificationSent(true)}
+              disabled={!data.binusEmail || sendVerification.isPending}
+              onClick={sendVerificationLink}
             >
               Send verification link
             </Button>
@@ -270,26 +479,44 @@ export default function RegisterPage() {
                 link, then return here.
               </p>
               <p className="mt-2 text-xs text-brand-slate">
-                Verification is simulated while the verification service is
-                being connected.
+                After opening the link, check the verification status here.
               </p>
               <Button
                 type="button"
                 className="mt-4 min-h-11 w-full sm:w-auto"
-                onClick={() => setEmailVerified(true)}
+                disabled={verificationChecking}
+                onClick={() => void checkVerificationStatus()}
               >
-                Check verification status
+                {verificationChecking
+                  ? "Checking..."
+                  : "Check verification status"}
               </Button>
               <button
                 type="button"
                 className="mt-3 block min-h-11 w-full rounded-lg text-sm font-semibold text-brand-blue focus:outline-none focus:ring-2 focus:ring-ring sm:w-auto sm:px-2"
-                onClick={() => setVerificationSent(true)}
+                disabled={sendVerification.isPending}
+                onClick={sendVerificationLink}
               >
-                Resend verification link
+                {sendVerification.isPending
+                  ? "Sending..."
+                  : "Resend verification link"}
               </button>
             </div>
           )}
         </>
+      )}
+      {verificationNotice && (
+        <p
+          className={`mt-3 text-xs leading-5 ${
+            verificationNotice.type === "success"
+              ? "text-emerald-700"
+              : verificationNotice.type === "error"
+                ? "text-red-700"
+                : "text-brand-slate"
+          }`}
+        >
+          {verificationNotice.message}
+        </p>
       )}
     </div>
   );
@@ -319,14 +546,20 @@ export default function RegisterPage() {
             label="BINUS region"
             name="region"
             value={data.region}
-            options={regions}
+            options={(options.data?.binusRegions ?? []).map((item) => ({
+              value: item.id,
+              label: item.name,
+            }))}
             onChange={update}
           />
           <SelectField
             label="BINUS major"
             name="major"
             value={data.major}
-            options={binusMajors}
+            options={(options.data?.studyPrograms ?? []).map((item) => ({
+              value: item.id,
+              label: item.name,
+            }))}
             onChange={update}
           />
         </div>
@@ -342,8 +575,8 @@ export default function RegisterPage() {
           />
           <Field
             label="Student ID / NIM"
-            name="studentId"
-            value={data.studentId}
+            name="nim"
+            value={data.nim}
             onChange={update}
           />
           <Field
@@ -370,7 +603,10 @@ export default function RegisterPage() {
             label="BINUS region"
             name="region"
             value={data.region}
-            options={regions}
+            options={(options.data?.binusRegions ?? []).map((item) => ({
+              value: item.id,
+              label: item.name,
+            }))}
             onChange={update}
           />
           <Field
@@ -424,17 +660,29 @@ export default function RegisterPage() {
         ? [
             ["userType", "Choose a user type"],
             ["institutionType", "Choose an institution type"],
+            ...(reregister
+              ? ([["membershipPosition", "Choose a HIMTI position"]] as Array<
+                  [keyof RegistrationData, string]
+                >)
+              : []),
           ]
         : step === 1
           ? [
               ["name", "Enter your full name"],
               ["phone", "Enter your phone number"],
-              ["personalEmail", "Enter your personal email"],
+              ["personalEmail", "Your Google email is unavailable"],
             ]
           : [];
     const missing = required
       .filter(([key]) => !data[key])
       .map(([, message]) => message);
+    if (step === 0 && !membershipPeriod) {
+      missing.push(
+        membershipStatus.isPending
+          ? "Membership period is still loading"
+          : "No active membership period is available",
+      );
+    }
     if (step === 2 && (!data.userType || !data.institutionType))
       return ["Choose your registration path first"];
     if (step === 2) {
@@ -461,7 +709,7 @@ export default function RegisterPage() {
     if (data.userType === "Student")
       return [
         ["university", "Enter your university"],
-        ["studentId", "Enter your student ID / NIM"],
+        ["nim", "Enter your student ID / NIM"],
         ["major", "Enter your major"],
       ];
     if (data.institutionType === "BINUS")
@@ -498,7 +746,46 @@ export default function RegisterPage() {
     }
     setStep((current) => Math.min(current + 1, 3));
   };
-  const submit = () => setSubmitted(true);
+  const submit = () => {
+    setErrors([]);
+    if (!options.data) {
+      setErrors(["Registration options could not be loaded"]);
+      return;
+    }
+    if (
+      data.institutionType === "BINUS" &&
+      !options.data.universities.some((university) =>
+        university.name.toLowerCase().includes("binus"),
+      )
+    ) {
+      setErrors(["BINUS University is unavailable"]);
+      return;
+    }
+    saveProfile.mutate(buildRegistrationPayload(data, options.data), {
+      onSuccess: () => {
+        if (draftContext) clearRegistrationDraft(draftContext);
+        setSubmitted(true);
+      },
+      onError: (error) => {
+        const body = axios.isAxiosError(error) ? error.response?.data : null;
+        const registrationError = body?.errors?.registration;
+        const fieldErrors =
+          body?.errors && typeof body.errors === "object"
+            ? Object.values(body.errors).flatMap((value) =>
+                typeof value === "object" && value && "_errors" in value
+                  ? ((value as { _errors?: string[] })._errors ?? [])
+                  : [],
+              )
+            : [];
+        setErrors([
+          registrationError ||
+            fieldErrors[0] ||
+            body?.msg ||
+            "Registration could not be saved",
+        ]);
+      },
+    });
+  };
 
   if (submitted)
     return (
@@ -507,13 +794,16 @@ export default function RegisterPage() {
           <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-brand-pale text-brand-blue">
             <Send />
           </span>
-          <p className="section-label mt-6">Registration complete</p>
+          <p className="section-label mt-6">
+            {reregister ? "Reregistration complete" : "Registration complete"}
+          </p>
           <h1 className="mt-3 text-3xl font-bold tracking-tight text-brand-navy">
-            Welcome to HIMTI.
+            {reregister ? "Membership renewed." : "Welcome to HIMTI."}
           </h1>
           <p className="mt-4 text-sm leading-6 text-brand-slate">
-            Your registration is complete. You can now access your member
-            information and community contacts.
+            {reregister
+              ? "Your membership details have been submitted for the new member period."
+              : "Your registration is complete. You can now access your member information and community contacts."}
           </p>
           <Button asChild className="mt-8">
             <Link to="/dashboard">Open dashboard</Link>
@@ -533,27 +823,42 @@ export default function RegisterPage() {
             <span className="grid size-8 shrink-0 place-items-center overflow-hidden rounded-lg bg-brand-navy p-1">
               <img src="/himti-icon.svg" alt="" />
             </span>
-            <span className="truncate">HIMTI registration</span>
+            <span className="truncate">
+              HIMTI {reregister ? "reregistration" : "registration"}
+            </span>
           </Link>
           <Link
-            to="/"
+            to={reregister ? "/dashboard" : "/"}
             className="shrink-0 rounded-lg px-2 py-2 text-xs font-semibold text-brand-blue focus:outline-none focus:ring-2 focus:ring-ring sm:text-sm"
           >
-            Back home
+            {reregister ? "Dashboard" : "Back home"}
           </Link>
         </div>
         <section className="rounded-2xl border border-white/80 bg-white/95 p-4 shadow-[0_24px_70px_-35px_rgba(0,33,79,0.45)] sm:rounded-3xl sm:p-8">
           <div>
-            <p className="section-label">Join the community</p>
-            <h1 className="mt-2 text-2xl font-bold tracking-[-0.04em] text-brand-navy sm:text-3xl">
-              Tell us about yourself
-            </h1>
-            <p className="mt-3 text-sm text-brand-slate">
-              Already have an account?{" "}
-              <Link to="/login" className="font-bold text-brand-blue underline-offset-4 hover:underline focus:outline-none focus:ring-2 focus:ring-ring">
-                Log in
-              </Link>
+            <p className="section-label">
+              {reregister ? "Renew your membership" : "Join the community"}
             </p>
+            <h1 className="mt-2 text-2xl font-bold tracking-[-0.04em] text-brand-navy sm:text-3xl">
+              {reregister
+                ? "Confirm your member details"
+                : "Tell us about yourself"}
+            </h1>
+            {reregister ? (
+              <p className="mt-3 text-sm text-brand-slate">
+                Review the information prefilled from your current profile.
+              </p>
+            ) : (
+              <p className="mt-3 text-sm text-brand-slate">
+                Already have an account?{" "}
+                <Link
+                  to="/login"
+                  className="font-bold text-brand-blue underline-offset-4 hover:underline focus:outline-none focus:ring-2 focus:ring-ring"
+                >
+                  Log in
+                </Link>
+              </p>
+            )}
             <p className="mt-4 text-sm font-bold text-brand-blue sm:hidden">
               Step {step + 1} of 4{" "}
               <span className="text-brand-slate">· {steps[step]}</span>
@@ -639,6 +944,59 @@ export default function RegisterPage() {
                     onClick={() => changePath("institutionType", "Non-BINUS")}
                   />
                 </div>
+                <label className="mt-5 block text-sm font-semibold text-brand-ink">
+                  <span>Membership period</span>
+                  <input
+                    value={
+                      membershipStatus.isPending
+                        ? "Loading..."
+                        : (membershipPeriod?.label ?? "No active period")
+                    }
+                    readOnly
+                    aria-describedby="membership-period-help"
+                    className="mt-2 block h-11 w-full rounded-xl border border-brand-blue/15 bg-slate-100 px-3 text-sm font-medium text-brand-slate outline-none sm:max-w-sm"
+                  />
+                </label>
+                <p
+                  id="membership-period-help"
+                  className="mt-2 text-xs leading-5 text-brand-slate"
+                >
+                  Assigned automatically and cannot be changed here.
+                </p>
+                {reregister && (
+                  <fieldset className="mt-7">
+                    <legend className="text-lg font-bold text-brand-navy">
+                      HIMTI position
+                      <span className="ml-1 text-brand-blue" aria-hidden="true">
+                        *
+                      </span>
+                    </legend>
+                    <p className="mt-1 text-sm leading-6 text-brand-slate">
+                      Choose the position you will hold during this membership
+                      period.
+                    </p>
+                    <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                      {membershipPositions.map(({ display }) => (
+                        <Choice
+                          key={display}
+                          label={display}
+                          selected={data.membershipPosition === display}
+                          onClick={() => update("membershipPosition", display)}
+                        />
+                      ))}
+                    </div>
+                  </fieldset>
+                )}
+                {membershipStatus.isError && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="mt-3"
+                    onClick={() => void membershipStatus.refetch()}
+                  >
+                    Retry membership period
+                  </Button>
+                )}
               </div>
             )}
             {step === 1 && (
@@ -664,18 +1022,18 @@ export default function RegisterPage() {
                     type="tel"
                   />
                   <Field
-                    label="Personal email"
+                    label="Google email"
                     name="personalEmail"
                     value={data.personalEmail}
                     onChange={update}
                     type="email"
+                    readOnly
                   />
                   <Field
                     label="LINE ID"
                     name="lineId"
                     value={data.lineId}
                     onChange={update}
-                    required={false}
                   />
                 </div>
               </div>
@@ -708,6 +1066,15 @@ export default function RegisterPage() {
                   items={[
                     ["User type", data.userType],
                     ["Institution", data.institutionType],
+                    ...(reregister
+                      ? ([["HIMTI position", data.membershipPosition]] as Array<
+                          [string, string]
+                        >)
+                      : []),
+                    [
+                      "Membership period",
+                      membershipPeriod?.label ?? "Unavailable",
+                    ],
                   ]}
                   onEdit={() => setStep(0)}
                 />
@@ -716,33 +1083,14 @@ export default function RegisterPage() {
                   items={[
                     ["Full name", data.name],
                     ["Phone", data.phone],
-                    ["Personal email", data.personalEmail],
+                    ["Google email", data.personalEmail],
                     ["LINE ID", data.lineId || "Not provided"],
                   ]}
                   onEdit={() => setStep(1)}
                 />
                 <ReviewSection
                   title="Institution"
-                  items={Object.entries(data)
-                    .filter(
-                      ([key, value]) =>
-                        value &&
-                        ![
-                          "userType",
-                          "institutionType",
-                          "name",
-                          "phone",
-                          "personalEmail",
-                          "lineId",
-                        ].includes(key),
-                    )
-                    .map(
-                      ([key, value]) =>
-                        [key.replace(/([A-Z])/g, " $1"), value] as [
-                          string,
-                          string,
-                        ],
-                    )}
+                  items={institutionReviewItems(data, options.data)}
                   onEdit={() => setStep(2)}
                 />
               </div>
@@ -773,8 +1121,14 @@ export default function RegisterPage() {
                 type="button"
                 className="min-h-11 flex-1 sm:ml-auto sm:flex-none"
                 onClick={submit}
+                disabled={saveProfile.isPending}
               >
-                Submit registration <Send className="ml-2 size-4" />
+                {saveProfile.isPending
+                  ? "Saving..."
+                  : reregister
+                    ? "Submit reregistration"
+                    : "Submit registration"}{" "}
+                <Send className="ml-2 size-4" />
               </Button>
             )}
           </div>
@@ -782,6 +1136,58 @@ export default function RegisterPage() {
       </div>
     </main>
   );
+}
+
+function institutionReviewItems(
+  data: RegistrationData,
+  options?: UserRegistrationOptions,
+): [string, string][] {
+  const optionName = (
+    items: UserRegistrationOptions["universities"],
+    id: string,
+  ) => items.find((item) => item.id === id)?.name ?? "Unavailable";
+
+  if (data.institutionType === "BINUS") {
+    const items: [string, string][] = [
+      [
+        "University",
+        options?.universities.find((item) =>
+          item.name.toLowerCase().includes("binus"),
+        )?.name ?? "BINUS",
+      ],
+      ["BINUS region", optionName(options?.binusRegions ?? [], data.region)],
+      ["BINUS email", data.binusEmail],
+    ];
+    if (data.userType === "Student")
+      return [
+        ...items,
+        ["NIM", data.nim],
+        ["BINUSian batch", data.batch],
+        ["BINUS major", optionName(options?.studyPrograms ?? [], data.major)],
+      ];
+    return [
+      ...items,
+      data.userType === "Lecturer"
+        ? ["Department / program", data.department]
+        : ["Affiliation / role", data.affiliation],
+    ];
+  }
+
+  if (data.userType === "Student")
+    return [
+      ["University", data.university],
+      ["Student ID / NIM", data.nim],
+      ["Major", data.major],
+    ];
+  if (data.userType === "Lecturer")
+    return [
+      ["University / institution", data.university],
+      ["Department / program", data.department],
+    ];
+  return [
+    ["Institution / organization", data.institution],
+    ["Affiliation / role", data.affiliation],
+  ];
 }
 
 function ReviewSection({

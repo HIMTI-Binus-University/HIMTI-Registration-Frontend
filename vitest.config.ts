@@ -5,5 +5,9 @@ import path from "node:path";
 export default defineConfig({
   plugins: [react()],
   resolve: { alias: { "@": path.resolve(import.meta.dirname, "./src") } },
-  test: { environment: "jsdom", setupFiles: "./src/test/setup.ts" },
+  test: {
+    environment: "jsdom",
+    environmentOptions: { jsdom: { url: "http://localhost:3000" } },
+    setupFiles: "./src/test/setup.ts",
+  },
 });
