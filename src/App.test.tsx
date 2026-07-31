@@ -342,7 +342,7 @@ test("renders compact event cards that open internal detail pages", () => {
   expect(screen.queryByText("Future Web Workshop")).toBeNull();
 });
 
-test("renders ordered sub-events with clear registration and location states", () => {
+test("renders ordered sub-events with clear registration and location states", async () => {
   mockProfile({
     registrationCompleted: true,
     registrationCompletedAt: "2026-07-21T00:00:00.000Z",
@@ -380,8 +380,15 @@ test("renders ordered sub-events with clear registration and location states", (
     "href",
     "/dashboard",
   );
-  expect(screen.getByRole("button", { name: /logout/i })).toBeInTheDocument();
-  expect(screen.queryByText(/published event/i)).not.toBeInTheDocument();
+   expect(screen.getByRole("button", { name: /logout/i })).toBeInTheDocument();
+   expect(screen.queryByText(/published event/i)).not.toBeInTheDocument();
+
+   const user = userEvent.setup();
+   await user.click(screen.getAllByRole("button", { name: /view full details/i })[0]);
+   expect(screen.getByRole("dialog", { name: /future web workshop/i })).toBeInTheDocument();
+   expect(screen.getByRole("dialog")).toHaveTextContent(/learn modern frontend foundations/i);
+   await user.click(screen.getByRole("button", { name: /close details/i }));
+   expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   expect(screen.queryByText(/^program$/i)).not.toBeInTheDocument();
 });
 
