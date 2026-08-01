@@ -5,7 +5,7 @@ import { useCurrentUser } from "@/api/users/queries";
 import { useMembershipStatus } from "@/api/membership/queries";
 import { Button } from "@/components/ui/button";
 
-function Loading() {
+export function AccountLoading() {
   return (
     <div className="grid min-h-screen place-items-center text-sm text-brand-slate">
       Checking your account...
@@ -13,7 +13,7 @@ function Loading() {
   );
 }
 
-function LoadError({ retry }: { retry: () => void }) {
+export function AccountLoadError({ retry }: { retry: () => void }) {
   return (
     <div className="grid min-h-screen place-items-center px-4 text-center">
       <div>
@@ -31,13 +31,13 @@ function LoadError({ retry }: { retry: () => void }) {
 export function RequireAuth({ children }: { children: ReactNode }) {
   const location = useLocation();
   const query = useCurrentUser();
-  if (query.isPending) return <Loading />;
+  if (query.isPending) return <AccountLoading />;
   if (query.isError) {
     if (axios.isAxiosError(query.error) && query.error.response?.status === 401)
       return (
         <Navigate to="/login" replace state={{ from: location.pathname }} />
       );
-    return <LoadError retry={() => void query.refetch()} />;
+    return <AccountLoadError retry={() => void query.refetch()} />;
   }
   return children;
 }
@@ -48,8 +48,9 @@ export function RequireCompletedRegistration({
   children: ReactNode;
 }) {
   const query = useCurrentUser();
-  if (query.isPending) return <Loading />;
-  if (query.isError) return <LoadError retry={() => void query.refetch()} />;
+  if (query.isPending) return <AccountLoading />;
+  if (query.isError)
+    return <AccountLoadError retry={() => void query.refetch()} />;
   return query.data.registrationCompleted ? (
     children
   ) : (
@@ -63,8 +64,9 @@ export function RequireIncompleteRegistration({
   children: ReactNode;
 }) {
   const query = useCurrentUser();
-  if (query.isPending) return <Loading />;
-  if (query.isError) return <LoadError retry={() => void query.refetch()} />;
+  if (query.isPending) return <AccountLoading />;
+  if (query.isError)
+    return <AccountLoadError retry={() => void query.refetch()} />;
   return query.data.registrationCompleted ? (
     <Navigate to="/dashboard" replace />
   ) : (
@@ -78,8 +80,9 @@ export function RequireAvailableReregistration({
   children: ReactNode;
 }) {
   const query = useMembershipStatus();
-  if (query.isPending) return <Loading />;
-  if (query.isError) return <LoadError retry={() => void query.refetch()} />;
+  if (query.isPending) return <AccountLoading />;
+  if (query.isError)
+    return <AccountLoadError retry={() => void query.refetch()} />;
   return query.data.availablePeriod ? (
     children
   ) : (
