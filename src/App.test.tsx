@@ -108,8 +108,8 @@ const publishedEvent = {
       destinationUrl: "javascript:alert(1)",
       position: 2,
       price: 0,
-       maxParticipants: null,
-        status: "CLOSED",
+      maxParticipants: null,
+      status: "CLOSED",
     },
     {
       id: "subevent-1",
@@ -123,8 +123,8 @@ const publishedEvent = {
       destinationUrl: "https://registration.example.com/workshop",
       position: 1,
       price: 25000,
-       maxParticipants: 40,
-        status: "OPEN",
+      maxParticipants: 40,
+      status: "OPEN",
     },
   ],
 };
@@ -150,10 +150,21 @@ function mockProfile(overrides = {}) {
   } as never);
 }
 
+function mockLoggedOutProfile() {
+  vi.mocked(useCurrentUser).mockReturnValue({
+    isPending: false,
+    isError: true,
+    isSuccess: false,
+    error: { isAxiosError: true, response: { status: 401 } },
+    refetch: vi.fn(),
+  } as never);
+}
+
 afterEach(cleanup);
 beforeEach(() => {
   window.localStorage.clear();
   vi.mocked(apiClient.get).mockReset();
+  vi.mocked(signOut).mockReset().mockResolvedValue(undefined);
   mockProfile();
   mockEvents();
   vi.mocked(useUserRegistrationOptions).mockReturnValue({
@@ -198,6 +209,7 @@ function renderApp(ui: ReactNode) {
 }
 
 test("renders the HIMTI landing page", () => {
+  mockLoggedOutProfile();
   renderApp(
     <BrowserRouter>
       <App />
@@ -229,16 +241,7 @@ test("renders the HIMTI landing page", () => {
   expect(screen.getByText("Welcoming Party")).toBeInTheDocument();
 });
 
-test("keeps the landing page public when an incomplete user has a session", () => {
-  vi.mocked(useSession).mockReturnValue({
-    data: {
-      user: { id: "user-1", name: "HIMTI Member", email: "member@example.com" },
-      session: { id: "session-1", expiresAt: "2026-08-01T00:00:00.000Z" },
-    },
-    isPending: false,
-    isError: false,
-  } as never);
-
+test("sends incomplete authenticated users from the homepage to registration", () => {
   renderApp(
     <MemoryRouter initialEntries={["/"]}>
       <App />
@@ -246,11 +249,9 @@ test("keeps the landing page public when an incomplete user has a session", () =
   );
 
   expect(
-    screen.getByRole("heading", { name: /join once/i }),
+    screen.getByRole("heading", { name: /tell us about yourself/i }),
   ).toBeInTheDocument();
-  expect(
-    screen.queryByRole("heading", { name: /tell us about yourself/i }),
-  ).toBeNull();
+  expect(screen.queryByRole("heading", { name: /join once/i })).toBeNull();
 });
 
 test("renders the registration wizard and advances through the first step", async () => {
@@ -264,11 +265,12 @@ test("renders the registration wizard and advances through the first step", asyn
   expect(
     screen.getByRole("heading", { name: /tell us about yourself/i }),
   ).toBeInTheDocument();
-  expect(screen.getByText(/already have an account/i)).toBeInTheDocument();
-  expect(screen.getByRole("link", { name: /log in/i })).toHaveAttribute(
-    "href",
-    "/login",
-  );
+  expect(
+    screen.getByText(/signed in with the wrong account/i),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByRole("button", { name: /switch account/i }),
+  ).toBeInTheDocument();
   expect(screen.getByLabelText(/membership period/i)).toHaveValue("2025/2026");
   expect(screen.getByLabelText(/membership period/i)).toHaveAttribute(
     "readonly",
@@ -342,7 +344,7 @@ test("renders compact event cards that open internal detail pages", () => {
   expect(screen.queryByText("Future Web Workshop")).toBeNull();
 });
 
-test("renders ordered sub-events with clear registration and location states", () => {
+test("renders ordered sub-events with clear registration and location states", async () => {
   mockProfile({
     registrationCompleted: true,
     registrationCompletedAt: "2026-07-21T00:00:00.000Z",
@@ -372,16 +374,27 @@ test("renders ordered sub-events with clear registration and location states", (
   expect(destination).toHaveAttribute("rel", "noopener noreferrer");
   expect(screen.getAllByRole("link", { name: /^register/i })).toHaveLength(1);
   expect(screen.getByRole("button", { name: /^register/i })).toBeDisabled();
-  expect(screen.getByRole("link", { name: /binus alam sutera/i })).toHaveAttribute(
-    "href",
-    "https://maps.example.com/showcase",
-  );
-  expect(screen.getByRole("link", { name: /back to dashboard/i })).toHaveAttribute(
-    "href",
-    "/dashboard",
-  );
+  expect(
+    screen.getByRole("link", { name: /binus alam sutera/i }),
+  ).toHaveAttribute("href", "https://maps.example.com/showcase");
+  expect(
+    screen.getByRole("link", { name: /back to dashboard/i }),
+  ).toHaveAttribute("href", "/dashboard");
   expect(screen.getByRole("button", { name: /logout/i })).toBeInTheDocument();
   expect(screen.queryByText(/published event/i)).not.toBeInTheDocument();
+
+  const user = userEvent.setup();
+  await user.click(
+    screen.getAllByRole("button", { name: /view full details/i })[0],
+  );
+  expect(
+    screen.getByRole("dialog", { name: /future web workshop/i }),
+  ).toBeInTheDocument();
+  expect(screen.getByRole("dialog")).toHaveTextContent(
+    /learn modern frontend foundations/i,
+  );
+  await user.click(screen.getByRole("button", { name: /close details/i }));
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   expect(screen.queryByText(/^program$/i)).not.toBeInTheDocument();
 });
 
@@ -668,11 +681,7 @@ test("restores, changes, and submits the reregistration position", async () => {
   );
 });
 
-test("keeps the landing page public for registered users", () => {
-  vi.mocked(useSession).mockReturnValue({
-    data: { user: { id: "user-1" } },
-    isPending: false,
-  } as never);
+test("sends registered users from the homepage to the dashboard", () => {
   mockProfile({
     registrationCompleted: true,
     registrationCompletedAt: "2026-07-21T00:00:00.000Z",
@@ -684,9 +693,78 @@ test("keeps the landing page public for registered users", () => {
   );
 
   expect(
-    screen.getByRole("heading", { name: /join once/i }),
+    screen.getByRole("heading", { name: "HIMTI Member" }),
   ).toBeInTheDocument();
-  expect(screen.queryByRole("heading", { name: "HIMTI Member" })).toBeNull();
+  expect(screen.queryByRole("heading", { name: /join once/i })).toBeNull();
+});
+
+test("does not show the homepage while checking the current account", () => {
+  vi.mocked(useCurrentUser).mockReturnValue({
+    isPending: true,
+    isError: false,
+    isSuccess: false,
+  } as never);
+
+  renderApp(
+    <MemoryRouter initialEntries={["/"]}>
+      <App />
+    </MemoryRouter>,
+  );
+
+  expect(screen.getByText(/checking your account/i)).toBeInTheDocument();
+  expect(screen.queryByRole("heading", { name: /join once/i })).toBeNull();
+});
+
+test("shows a retryable error when the homepage account check fails", () => {
+  vi.mocked(useCurrentUser).mockReturnValue({
+    isPending: false,
+    isError: true,
+    isSuccess: false,
+    error: { isAxiosError: true, response: { status: 500 } },
+    refetch: vi.fn(),
+  } as never);
+
+  renderApp(
+    <MemoryRouter initialEntries={["/"]}>
+      <App />
+    </MemoryRouter>,
+  );
+
+  expect(screen.getByText(/account could not be loaded/i)).toBeInTheDocument();
+  expect(screen.queryByRole("heading", { name: /join once/i })).toBeNull();
+});
+
+test("switches accounts from initial registration", async () => {
+  const user = userEvent.setup();
+  renderApp(
+    <MemoryRouter initialEntries={["/register"]}>
+      <App />
+    </MemoryRouter>,
+  );
+
+  await user.click(screen.getByRole("button", { name: /switch account/i }));
+
+  await waitFor(() => expect(signOut).toHaveBeenCalledOnce());
+  expect(screen.getByText("Continue with Google")).toBeInTheDocument();
+});
+
+test("keeps registration open when switching accounts fails", async () => {
+  const user = userEvent.setup();
+  vi.mocked(signOut).mockRejectedValueOnce(new Error("sign out failed"));
+  renderApp(
+    <MemoryRouter initialEntries={["/register"]}>
+      <App />
+    </MemoryRouter>,
+  );
+
+  await user.click(screen.getByRole("button", { name: /switch account/i }));
+
+  expect(
+    await screen.findByText(/could not switch accounts/i),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByRole("heading", { name: /tell us about yourself/i }),
+  ).toBeInTheDocument();
 });
 
 test("logs out from the dashboard", async () => {

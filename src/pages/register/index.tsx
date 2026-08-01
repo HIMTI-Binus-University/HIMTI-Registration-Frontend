@@ -3,11 +3,14 @@ import {
   ArrowRight,
   Check,
   ChevronDown,
+  LogOut,
   Pencil,
   Send,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
+import { signOut } from "@/api/auth";
 import { Button } from "@/components/ui/button";
 import {
   useCompleteCurrentUserProfile,
@@ -219,8 +222,12 @@ export default function RegisterPage({
   const [verificationNotice, setVerificationNotice] =
     useState<VerificationNotice>(null);
   const [draftReady, setDraftReady] = useState(false);
+  const [switchingAccount, setSwitchingAccount] = useState(false);
+  const [switchAccountError, setSwitchAccountError] = useState("");
   const hydratedProfile = useRef(false);
   const firstError = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const profile = useCurrentUser();
   const options = useUserRegistrationOptions();
   const membershipStatus = useMembershipStatus();
@@ -242,6 +249,21 @@ export default function RegisterPage({
         : null,
     [membershipPeriod?.id, profile.data, reregister],
   );
+
+  const switchAccount = async () => {
+    setSwitchingAccount(true);
+    setSwitchAccountError("");
+
+    try {
+      await signOut();
+      queryClient.clear();
+      navigate("/login", { replace: true });
+    } catch {
+      setSwitchAccountError("Could not switch accounts. Please try again.");
+    } finally {
+      setSwitchingAccount(false);
+    }
+  };
 
   useEffect(() => {
     const user = profile.data;
@@ -849,14 +871,22 @@ export default function RegisterPage({
                 Review the information prefilled from your current profile.
               </p>
             ) : (
-              <p className="mt-3 text-sm text-brand-slate">
-                Already have an account?{" "}
-                <Link
-                  to="/login"
-                  className="font-bold text-brand-blue underline-offset-4 hover:underline focus:outline-none focus:ring-2 focus:ring-ring"
+              <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-brand-slate">
+                <span>Signed in with the wrong account?</span>
+                <button
+                  type="button"
+                  disabled={switchingAccount}
+                  onClick={() => void switchAccount()}
+                  className="inline-flex items-center gap-1.5 rounded font-bold text-brand-blue underline-offset-4 hover:underline focus:outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  Log in
-                </Link>
+                  <LogOut className="size-3.5" aria-hidden="true" />
+                  {switchingAccount ? "Switching account..." : "Switch account"}
+                </button>
+              </div>
+            )}
+            {switchAccountError && (
+              <p role="alert" className="mt-2 text-sm text-red-700">
+                {switchAccountError}
               </p>
             )}
             <p className="mt-4 text-sm font-bold text-brand-blue sm:hidden">
