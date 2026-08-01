@@ -6,7 +6,7 @@ import {
   Ticket,
   Users,
 } from "lucide-react";
-import { useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
 import { usePublishedEvents, type MemberSubevent } from "@/api/events/queries";
 import { EventImage } from "@/components/event-image";
@@ -36,6 +36,7 @@ export default function EventDetailPage() {
   const eventsQuery = usePublishedEvents();
   const event = eventsQuery.data?.find((item) => item.id === eventId);
   const pageRef = useRef<HTMLElement>(null);
+  const [selectedSubevent, setSelectedSubevent] = useState<MemberSubevent | null>(null);
 
   useGSAP(
     () => {
@@ -141,9 +142,10 @@ export default function EventDetailPage() {
                     .map((subevent, index) => (
                       <SubeventCard
                         key={subevent.id}
-                        subevent={subevent}
-                        number={index + 1}
-                      />
+                         subevent={subevent}
+                         number={index + 1}
+                         onViewDetails={() => setSelectedSubevent(subevent)}
+                       />
                     ))}
                 </div>
               ) : (
@@ -158,6 +160,12 @@ export default function EventDetailPage() {
           </>
         )}
       </div>
+      {selectedSubevent && (
+        <SubeventDialog
+          subevent={selectedSubevent}
+          onClose={() => setSelectedSubevent(null)}
+        />
+      )}
     </main>
   );
 }
@@ -165,101 +173,115 @@ export default function EventDetailPage() {
 function SubeventCard({
   subevent,
   number,
+  onViewDetails,
 }: {
   subevent: MemberSubevent;
   number: number;
+  onViewDetails: () => void;
 }) {
   const destinationUrl = getSafeHttpUrl(subevent.destinationUrl);
   const locationUrl = getSafeHttpUrl(subevent.locationUrl);
 
   return (
-    <article
-      data-event-motion
-      className="flex overflow-hidden rounded-2xl border border-brand-blue/10 bg-white shadow-sm"
-    >
-      <EventImage
-        src={subevent.posterUrl}
-        alt={`${subevent.name} poster`}
-        className="hidden w-48 shrink-0 sm:grid lg:w-56"
-      />
-      <div className="flex min-w-0 flex-1 flex-col p-5">
-        <div className="flex items-start gap-3">
-          <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-brand-pale text-xs font-bold text-brand-blue">
-            {number}
-          </span>
-          <div className="min-w-0">
-            <p className="text-xs font-bold uppercase tracking-[0.1em] text-brand-blue">
-              {subevent.type.replaceAll("_", " ")}
-            </p>
-            <h3 className="mt-1 text-lg font-bold leading-snug text-brand-navy">
-              {subevent.name}
-            </h3>
+    <article data-event-motion className="overflow-hidden rounded-2xl border border-brand-blue/10 bg-white shadow-sm">
+      <div className="flex">
+        <EventImage src={subevent.posterUrl} alt={`${subevent.name} poster`} className="hidden w-48 shrink-0 sm:grid lg:w-56" />
+        <div className="flex min-w-0 flex-1 flex-col p-5 sm:p-6">
+          <div className="flex items-start gap-3">
+            <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-brand-pale text-xs font-bold text-brand-blue">{number}</span>
+            <div className="min-w-0">
+              <p className="text-xs font-bold uppercase tracking-[0.1em] text-brand-blue">{subevent.type.replaceAll("_", " ")}</p>
+              <h3 className="mt-1 text-lg font-bold leading-snug text-brand-navy">{subevent.name}</h3>
+            </div>
           </div>
-        </div>
-        {subevent.publicDescription && (
-          <ResourceMarkdown className="mt-3 line-clamp-3 text-sm leading-6 text-brand-slate">
-            {subevent.publicDescription}
-          </ResourceMarkdown>
-        )}
-        <div className="mt-4 grid gap-2.5 text-sm text-brand-slate">
-          <Detail icon={CalendarDays}>{formatDate(subevent.date)}</Detail>
-          <Detail icon={MapPin}>
-            {locationUrl ? (
-              <a
-                href={locationUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-semibold text-brand-blue hover:underline focus:outline-none focus:ring-2 focus:ring-ring"
-              >
-                {subevent.locationName || "View location"}
-              </a>
-            ) : (
-              subevent.locationName || "Online"
-            )}
-          </Detail>
-          <div className="grid gap-2.5 sm:grid-cols-2">
-            <Detail icon={Ticket}>{formatPrice(subevent.price)}</Detail>
-            <Detail icon={Users}>
-              {subevent.maxParticipants
-                ? `${subevent.maxParticipants} spots`
-                : "Open capacity"}
-            </Detail>
+          {subevent.publicDescription && <ResourceMarkdown className="mt-3 line-clamp-3 text-sm leading-6 text-brand-slate">{subevent.publicDescription}</ResourceMarkdown>}
+          <div className="mt-5 grid gap-2 sm:grid-cols-2">
+            <DetailCard icon={CalendarDays} label="Date">{formatDate(subevent.date)}</DetailCard>
+            <DetailCard icon={MapPin} label="Location">
+              {locationUrl ? <a href={locationUrl} target="_blank" rel="noopener noreferrer" className="font-semibold text-brand-blue hover:underline focus:outline-none focus:ring-2 focus:ring-ring">{subevent.locationName || "View location"}</a> : subevent.locationName || "Online"}
+            </DetailCard>
+            <DetailCard icon={Ticket} label="Price">{formatPrice(subevent.price)}</DetailCard>
+            <DetailCard icon={Users} label="Capacity">{subevent.maxParticipants ? `${subevent.maxParticipants} spots` : "Open capacity"}</DetailCard>
           </div>
-        </div>
-        <div className="mt-auto pt-5">
-          {destinationUrl ? (
-            <Button asChild className="min-h-11 w-full">
-              <a
-                href={destinationUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Register <ExternalLink className="ml-2 size-4" />
-              </a>
-            </Button>
-          ) : (
-            <Button className="min-h-11 w-full" disabled>
-              Register <ExternalLink className="ml-2 size-4" />
-            </Button>
-          )}
+          <div className="mt-5 flex flex-col-reverse gap-3 sm:flex-row">
+            <Button type="button" variant="outline" className="min-h-11 flex-1" onClick={onViewDetails}>View full details</Button>
+            {destinationUrl ? <Button asChild className="min-h-11 flex-1"><a href={destinationUrl} target="_blank" rel="noopener noreferrer">Register <ExternalLink className="ml-2 size-4" /></a></Button> : <Button className="min-h-11 flex-1" disabled>Register unavailable</Button>}
+          </div>
         </div>
       </div>
     </article>
   );
 }
 
-function Detail({
+function DetailCard({
   icon: Icon,
+  label,
   children,
 }: {
   icon: typeof CalendarDays;
+  label: string;
   children: ReactNode;
 }) {
   return (
-    <span className="flex min-w-0 items-start gap-2">
-      <Icon className="mt-0.5 size-4 shrink-0 text-brand-blue" />
-      <span>{children}</span>
-    </span>
+    <div className="rounded-xl border border-brand-blue/10 bg-brand-pale/30 p-3">
+      <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.08em] text-brand-blue">
+        <Icon className="size-4" /> {label}
+      </div>
+      <div className="mt-1 text-sm leading-5 text-brand-slate">{children}</div>
+    </div>
+  );
+}
+
+function SubeventDialog({
+  subevent,
+  onClose,
+}: {
+  subevent: MemberSubevent;
+  onClose: () => void;
+}) {
+  const destinationUrl = getSafeHttpUrl(subevent.destinationUrl);
+  const dialogRef = useRef<HTMLDialogElement>(null);
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (dialog?.showModal) dialog.showModal();
+    return () => {
+      if (dialog?.close) dialog.close();
+    };
+  }, []);
+
+  return (
+    <dialog
+      ref={dialogRef}
+      open={!HTMLDialogElement.prototype.showModal}
+      aria-labelledby="subevent-dialog-title"
+      onCancel={onClose}
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+      className="m-auto max-h-[90vh] w-[calc(100%-2rem)] max-w-2xl overflow-y-auto rounded-2xl border border-brand-blue/10 bg-white p-0 text-brand-navy shadow-2xl backdrop:bg-brand-navy/50"
+    >
+      <div className="p-5 sm:p-7">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.1em] text-brand-blue">{subevent.type.replaceAll("_", " ")}</p>
+            <h2 id="subevent-dialog-title" className="mt-1 text-2xl font-bold tracking-[-0.03em]">{subevent.name}</h2>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Close details" className="flex size-11 shrink-0 items-center justify-center rounded-lg p-0 text-2xl leading-none text-brand-slate hover:bg-brand-pale focus:outline-none focus:ring-2 focus:ring-ring">×</button>
+        </div>
+        {subevent.publicDescription ? <ResourceMarkdown className="mt-6 text-sm leading-7 text-brand-slate">{subevent.publicDescription}</ResourceMarkdown> : <p className="mt-6 text-sm text-brand-slate">No additional description is available.</p>}
+        <div className="mt-6 grid gap-2 sm:grid-cols-2">
+          <DetailCard icon={CalendarDays} label="When">{formatDate(subevent.date)}</DetailCard>
+          <DetailCard icon={MapPin} label="Where">{subevent.locationName || "Online"}</DetailCard>
+          <DetailCard icon={Ticket} label="Price">{formatPrice(subevent.price)}</DetailCard>
+          <DetailCard icon={Users} label="Capacity">{subevent.maxParticipants ? `${subevent.maxParticipants} spots` : "Open capacity"}</DetailCard>
+        </div>
+        <div className="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+          <Button type="button" variant="outline" className="min-h-11" onClick={onClose}>Close</Button>
+          {destinationUrl ? <Button asChild className="min-h-11"><a href={destinationUrl} target="_blank" rel="noopener noreferrer">Register <ExternalLink className="ml-2 size-4" /></a></Button> : <Button className="min-h-11" disabled>Registration unavailable</Button>}
+        </div>
+      </div>
+    </dialog>
   );
 }
 
