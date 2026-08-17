@@ -161,6 +161,13 @@ export default function HomePage() {
               variant="outline"
               className="h-9 border-0 px-2 text-xs text-brand-blue sm:h-11 sm:px-4 sm:text-sm"
             >
+              <Link to="/events">Events</Link>
+            </Button>
+            <Button
+              asChild
+              variant="outline"
+              className="h-9 border-0 px-2 text-xs text-brand-blue sm:h-11 sm:px-4 sm:text-sm"
+            >
               <Link to="/login">Log in</Link>
             </Button>
             <Button
@@ -190,6 +197,13 @@ export default function HomePage() {
               together.
             </p>
             <div className="hero-actions mt-3 flex gap-2 sm:mt-6 sm:gap-3 md:mt-9">
+              <Button
+                asChild
+                variant="outline"
+                className="h-10 min-h-0 flex-1 border-brand-blue/20 bg-white/70 px-3 text-sm text-brand-navy sm:h-12 sm:flex-none sm:px-7 sm:text-base"
+              >
+                <Link to="/events">Browse events</Link>
+              </Button>
               <Button
                 asChild
                 variant="outline"

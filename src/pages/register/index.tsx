@@ -8,7 +8,7 @@ import {
   Send,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { signOut } from "@/api/auth";
 import { Button } from "@/components/ui/button";
@@ -31,6 +31,7 @@ import {
   type RegistrationData,
   type UserType,
 } from "@/pages/register/payload";
+import { sanitizeReturnPath } from "@/utils/return-path";
 import {
   clearRegistrationDraft,
   readRegistrationDraft,
@@ -211,6 +212,11 @@ export default function RegisterPage({
 }: {
   reregister?: boolean;
 }) {
+  const [searchParams] = useSearchParams();
+  const returnTo = sanitizeReturnPath(
+    searchParams.get("returnTo"),
+    "/dashboard",
+  );
   const [step, setStep] = useState(0);
   const [data, setData] = useState(initialData);
   const [errors, setErrors] = useState<string[]>([]);
@@ -828,7 +834,9 @@ export default function RegisterPage({
               : "Your registration is complete. You can now access your member information and community contacts."}
           </p>
           <Button asChild className="mt-8">
-            <Link to="/dashboard">Open dashboard</Link>
+            <Link to={returnTo}>
+              {returnTo === "/dashboard" ? "Open dashboard" : "Continue"}
+            </Link>
           </Button>
         </div>
       </div>

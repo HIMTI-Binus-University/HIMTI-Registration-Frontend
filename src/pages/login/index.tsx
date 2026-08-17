@@ -1,8 +1,9 @@
 import { ArrowLeft } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { AuthLayout } from "@/components/layout/auth-layout";
 import { Button } from "@/components/ui/button";
 import { signInWithGoogle } from "@/api/auth";
+import { sanitizeReturnPath, storeReturnPath } from "@/utils/return-path";
 
 function GoogleMark() {
   return (
@@ -28,6 +29,12 @@ function GoogleMark() {
 }
 
 export default function LoginPage() {
+  const [params] = useSearchParams();
+  const location = useLocation();
+  const stateFrom = (location.state as { from?: unknown } | null)?.from;
+  const returnTo = storeReturnPath(
+    sanitizeReturnPath(params.get("returnTo") ?? stateFrom, "/dashboard"),
+  );
   return (
     <AuthLayout>
       <section className="p-5 text-center sm:p-8">
@@ -42,7 +49,7 @@ export default function LoginPage() {
           type="button"
           variant="outline"
           className="mt-8 h-12 w-full gap-3 border-brand-blue/20 bg-white text-brand-ink hover:bg-brand-pale"
-          onClick={() => void signInWithGoogle()}
+          onClick={() => void signInWithGoogle(returnTo)}
         >
           <GoogleMark /> Continue with Google
         </Button>

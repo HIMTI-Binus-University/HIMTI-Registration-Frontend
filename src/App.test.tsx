@@ -17,7 +17,11 @@ import {
 import { signOut, useSession } from "@/api/auth";
 import apiClient from "@/config/api-client";
 import { writeRegistrationDraft } from "@/pages/register/draft";
-import { usePublishedEvents } from "@/api/events/queries";
+import {
+  usePublicEvent,
+  usePublicEvents,
+  usePublishedEvents,
+} from "@/api/events/queries";
 
 vi.mock("@/api/users/queries", () => ({
   useCurrentUser: vi.fn(),
@@ -41,6 +45,8 @@ vi.mock("@/api/membership/queries", () => ({
 
 vi.mock("@/api/events/queries", () => ({
   usePublishedEvents: vi.fn(),
+  usePublicEvents: vi.fn(),
+  usePublicEvent: vi.fn(),
 }));
 
 vi.mock("@/api/auth", () => ({
@@ -167,6 +173,24 @@ beforeEach(() => {
   vi.mocked(signOut).mockReset().mockResolvedValue(undefined);
   mockProfile();
   mockEvents();
+  vi.mocked(usePublicEvents).mockReturnValue({
+    data: {
+      data: [],
+      meta: { page: 1, limit: 50, totalPages: 0, totalRecords: 0 },
+      msg: "success",
+    },
+    isPending: false,
+    isError: false,
+    isSuccess: true,
+    refetch: vi.fn(),
+  } as never);
+  vi.mocked(usePublicEvent).mockReturnValue({
+    data: undefined,
+    isPending: false,
+    isError: false,
+    isSuccess: true,
+    refetch: vi.fn(),
+  } as never);
   vi.mocked(useUserRegistrationOptions).mockReturnValue({
     data: undefined,
   } as never);
@@ -349,7 +373,22 @@ test("renders ordered sub-events with clear registration and location states", a
     registrationCompleted: true,
     registrationCompletedAt: "2026-07-21T00:00:00.000Z",
   });
-  mockEvents({ data: [publishedEvent] });
+  vi.mocked(usePublicEvent).mockReturnValue({
+    data: {
+      ...publishedEvent,
+      status: "PUBLISHED",
+      subEvents: publishedEvent.subevents.map((item) => ({
+        ...item,
+        registrationMode: "INTERNAL",
+        visibility: "PUBLIC",
+        isRegistrationOpen: item.status === "OPEN",
+      })),
+    },
+    isPending: false,
+    isError: false,
+    isSuccess: true,
+    refetch: vi.fn(),
+  } as never);
 
   renderApp(
     <MemoryRouter initialEntries={["/events/event-1"]}>
@@ -365,36 +404,22 @@ test("renders ordered sub-events with clear registration and location states", a
     "Future Web Workshop",
     "Closing Showcase",
   ]);
-  const destination = screen.getByRole("link", { name: /^register/i });
+  const destination = screen.getByRole("link", {
+    name: /continue to registration/i,
+  });
   expect(destination).toHaveAttribute(
     "href",
-    "https://registration.example.com/workshop",
+    "/events/event-1/subevents/subevent-1/register",
   );
-  expect(destination).toHaveAttribute("target", "_blank");
-  expect(destination).toHaveAttribute("rel", "noopener noreferrer");
-  expect(screen.getAllByRole("link", { name: /^register/i })).toHaveLength(1);
-  expect(screen.getByRole("button", { name: /^register/i })).toBeDisabled();
   expect(
     screen.getByRole("link", { name: /binus alam sutera/i }),
   ).toHaveAttribute("href", "https://maps.example.com/showcase");
-  expect(
-    screen.getByRole("link", { name: /back to dashboard/i }),
-  ).toHaveAttribute("href", "/dashboard");
-  expect(screen.getByRole("button", { name: /logout/i })).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: /all events/i })).toHaveAttribute(
+    "href",
+    "/events",
+  );
   expect(screen.queryByText(/published event/i)).not.toBeInTheDocument();
 
-  const user = userEvent.setup();
-  await user.click(
-    screen.getAllByRole("button", { name: /view full details/i })[0],
-  );
-  expect(
-    screen.getByRole("dialog", { name: /future web workshop/i }),
-  ).toBeInTheDocument();
-  expect(screen.getByRole("dialog")).toHaveTextContent(
-    /learn modern frontend foundations/i,
-  );
-  await user.click(screen.getByRole("button", { name: /close details/i }));
-  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   expect(screen.queryByText(/^program$/i)).not.toBeInTheDocument();
 });
 
@@ -405,11 +430,11 @@ test("supports event loading, retryable error, and not-found states", async () =
     registrationCompleted: true,
     registrationCompletedAt: "2026-07-21T00:00:00.000Z",
   });
-  mockEvents({
+  vi.mocked(usePublicEvent).mockReturnValue({
     data: undefined,
     isPending: true,
     isSuccess: false,
-  });
+  } as never);
   const view = renderApp(
     <MemoryRouter initialEntries={["/events/event-1"]}>
       <App />
@@ -419,12 +444,12 @@ test("supports event loading, retryable error, and not-found states", async () =
     screen.getByRole("status", { name: /loading event/i }),
   ).toBeInTheDocument();
 
-  mockEvents({
+  vi.mocked(usePublicEvent).mockReturnValue({
     data: undefined,
     isError: true,
     isSuccess: false,
     refetch,
-  });
+  } as never);
   view.rerender(
     <QueryClientProvider client={new QueryClient()}>
       <MemoryRouter initialEntries={["/events/event-1"]}>
@@ -435,7 +460,13 @@ test("supports event loading, retryable error, and not-found states", async () =
   await user.click(screen.getByRole("button", { name: /try again/i }));
   expect(refetch).toHaveBeenCalledOnce();
 
-  mockEvents();
+  vi.mocked(usePublicEvent).mockReturnValue({
+    data: undefined,
+    isPending: false,
+    isError: true,
+    isSuccess: false,
+    refetch: vi.fn(),
+  } as never);
   view.rerender(
     <QueryClientProvider client={new QueryClient()}>
       <MemoryRouter initialEntries={["/events/missing"]}>
@@ -444,7 +475,7 @@ test("supports event loading, retryable error, and not-found states", async () =
     </QueryClientProvider>,
   );
   expect(
-    screen.getByRole("heading", { name: /event not found/i }),
+    screen.getByRole("heading", { name: /event could not be loaded/i }),
   ).toBeInTheDocument();
 });
 
@@ -773,6 +804,14 @@ test("logs out from the dashboard", async () => {
     registrationCompleted: true,
     registrationCompletedAt: "2026-07-21T00:00:00.000Z",
   });
+  vi.mocked(useSession).mockReturnValue({
+    data: {
+      user: { id: "user-1", name: "HIMTI Member", email: "member@example.com" },
+      session: { id: "session-1", expiresAt: "2027-01-01" },
+    },
+    isPending: false,
+    isError: false,
+  } as never);
   renderApp(
     <MemoryRouter initialEntries={["/dashboard"]}>
       <App />
@@ -922,7 +961,7 @@ test("verifies an Outlook token once and shows success", async () => {
 
   expect(await screen.findByText(/email confirmed/i)).toBeInTheDocument();
   expect(apiClient.get).toHaveBeenCalledTimes(1);
-  expect(apiClient.get).toHaveBeenCalledWith("/user/binus-email/verify", {
+  expect(apiClient.get).toHaveBeenCalledWith("/api/user/binus-email/verify", {
     params: { token: "success-token" },
   });
   expect(

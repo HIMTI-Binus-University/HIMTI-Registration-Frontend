@@ -151,6 +151,9 @@ export default function DashboardPage() {
             title="Events"
             copy="Explore published events and choose your next experience."
           />
+          <Button asChild variant="outline" className="mt-4">
+            <Link to="/registrations">My registrations</Link>
+          </Button>
           {eventsQuery.isPending && (
             <div
               role="status"
