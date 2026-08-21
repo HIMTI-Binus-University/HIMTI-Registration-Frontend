@@ -9,7 +9,6 @@ import { AppHeader } from "@/components/layout/app-header";
 import { Button } from "@/components/ui/button";
 import { formatPackageAmount } from "@/utils/money";
 
-const editable = new Set(["DRAFT", "NEEDS_CORRECTION"]);
 const date = (value: string) =>
   new Intl.DateTimeFormat("en-ID", {
     dateStyle: "medium",
@@ -117,19 +116,14 @@ function Card({ item }: { item: RegistrationSummary }) {
             {date(item.subEvent.date)}
           </p>
           <p className="mt-2 text-xs font-semibold text-brand-blue">
-            {formatPackageAmount(item.package)}
+            {formatPackageAmount(item.package)} total · exactly{" "}
+            {item.package.seatCount}{" "}
+            {item.package.seatCount === 1 ? "seat" : "seats"}
           </p>
         </div>
-        <Button
-          asChild
-          variant={editable.has(item.status) ? "primary" : "outline"}
-        >
+        <Button asChild variant="outline">
           <Link to={`/registrations/${item.id}`}>
-            {item.status === "NEEDS_CORRECTION"
-              ? "Correct"
-              : editable.has(item.status)
-                ? "Resume"
-                : "View"}
+            View
             <ArrowRight className="ml-2 size-4" />
           </Link>
         </Button>

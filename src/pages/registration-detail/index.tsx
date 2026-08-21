@@ -15,8 +15,9 @@ import {
   postRegistrationCta,
   postRegistrationOrganizerNotice,
 } from "./post-registration";
+import { RosterPanel } from "./invitations";
+import { canOpenResponseEditor, shouldQueryPayment } from "./lifecycle";
 
-const editable = new Set(["DRAFT", "NEEDS_CORRECTION"]);
 const cancellable = new Set([
   "DRAFT",
   "AWAITING_MEMBERS",
@@ -41,6 +42,9 @@ export default function RegistrationDetailPage() {
   const cancel = useCancelRegistration(registrationId);
   const navigate = useNavigate();
   const data = query.data;
+  const canCancel = data?.viewer.capabilities.includes("CANCEL");
+  const canManageInvitations =
+    data?.viewer.capabilities.includes("MANAGE_INVITATIONS");
   const assignments = usePostRegistrationAssignments(
     registrationId,
     data?.status === "APPROVED",
@@ -92,9 +96,10 @@ export default function RegistrationDetailPage() {
                 {formatPackageAmount(data.package)}
               </p>
             </section>
-            {data.package.priceMinor !== "0" && data.status !== "DRAFT" && (
+            {shouldQueryPayment(data) && (
               <PaymentPanel registrationId={data.id} />
             )}
+            {canManageInvitations && <RosterPanel detail={data} />}
             {data.status === "NEEDS_CORRECTION" && (
               <section className="mt-5 rounded-2xl border border-amber-300 bg-amber-50 p-6 text-amber-950 sm:p-8">
                 <h2 className="text-xl font-bold">Corrections requested</h2>
@@ -121,7 +126,18 @@ export default function RegistrationDetailPage() {
               </h2>
               <dl className="mt-4 grid gap-4 sm:grid-cols-2">
                 <Info label="Status" value={data.status.replaceAll("_", " ")} />
-                <Info label="Seats" value={String(data.package.seatCount)} />
+                <Info
+                  label="Package total"
+                  value={formatPackageAmount(data.package)}
+                />
+                <Info
+                  label="Exact seats"
+                  value={String(data.package.seatCount)}
+                />
+                <Info
+                  label="Your role"
+                  value={data.viewer.role.replaceAll("_", " ")}
+                />
                 <Info
                   label="Submitted"
                   value={
@@ -177,20 +193,18 @@ export default function RegistrationDetailPage() {
                 );
               })}
               <div className="mt-8 flex flex-col gap-3 border-t border-brand-blue/10 pt-6 sm:flex-row sm:justify-end">
-                {editable.has(data.status) && (
+                {canOpenResponseEditor(data) && (
                   <Button
-                    onClick={() =>
-                      navigate(
-                        `/events/${data.event.id}/subevents/${data.subEvent.id}/register`,
-                      )
-                    }
+                    onClick={() => navigate(`/registrations/${data.id}/edit`)}
                   >
                     {data.status === "NEEDS_CORRECTION"
-                      ? "Correct registration"
-                      : "Resume registration"}
+                      ? "Correct my responses"
+                      : data.viewer.capabilities.includes("SAVE_OWN_MEMBER")
+                        ? "Edit my responses"
+                        : "Edit registration"}
                   </Button>
                 )}
-                {cancellable.has(data.status) && (
+                {cancellable.has(data.status) && canCancel && (
                   <Button
                     variant="outline"
                     className="border-red-300 text-red-700"

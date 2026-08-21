@@ -42,8 +42,17 @@ import {
   isCorrectionExpired,
   revisionFingerprint,
 } from "./lifecycle";
+import { readinessMessage } from "./readiness";
+import { reconcilePackageSelection } from "./package-selection";
 
 export default function EventRegistrationPage() {
+  const { registrationId } = useParams();
+  if (registrationId)
+    return <RegistrationEditor registrationId={registrationId} />;
+  return <NewEventRegistrationPage />;
+}
+
+function NewEventRegistrationPage() {
   const { eventId = "", subEventId = "" } = useParams();
   const [params] = useSearchParams();
   const inviteToken = params.get("inviteToken") ?? undefined;
@@ -58,6 +67,12 @@ export default function EventRegistrationPage() {
     hash: location.hash,
   });
   const [createdId, setCreatedId] = useState<string>();
+  const [packageChoice, setPackageChoice] = useState("");
+  const packageIds = context.data?.packages.map((item) => item.id) ?? [];
+  const selectedPackageId = reconcilePackageSelection(
+    packageIds,
+    packageChoice,
+  );
 
   if (event.isPending)
     return (
@@ -209,27 +224,54 @@ export default function EventRegistrationPage() {
   return (
     <Shell>
       <State title="Start your registration">
-        <p>
-          {data.package?.name ?? "Free one-seat registration"} ·{" "}
-          {data.package === null
-            ? "Free - no payment required"
-            : formatPackageAmount(data.package)}
-        </p>
-        {data.package && data.package.seatCount !== 1 && (
-          <p className="mt-2 text-sm text-amber-800">
-            Bundle registration is not available in this flow.
-          </p>
+        {data.packages.length > 0 ? (
+          <fieldset className="mt-5 text-left">
+            <legend className="font-bold text-brand-navy">
+              Choose an eligible package
+            </legend>
+            <div className="mt-3 space-y-3">
+              {data.packages.map((item) => {
+                const checked = selectedPackageId === item.id;
+                return (
+                  <label
+                    key={item.id}
+                    className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 ${checked ? "border-brand-blue bg-brand-pale" : "border-brand-blue/15"}`}
+                  >
+                    <input
+                      type="radio"
+                      name="package"
+                      value={item.id}
+                      checked={checked}
+                      onChange={() => setPackageChoice(item.id)}
+                      className="mt-1"
+                    />
+                    <span>
+                      <span className="block font-bold text-brand-navy">
+                        {item.name}
+                      </span>
+                      <span className="text-sm text-brand-slate">
+                        {formatPackageAmount(item)} total · exactly{" "}
+                        {item.seatCount}{" "}
+                        {item.seatCount === 1 ? "seat" : "seats"}
+                      </span>
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          </fieldset>
+        ) : (
+          <p>Free one-seat registration · Free - no payment required</p>
         )}
         <Button
           className="mt-5"
           disabled={
-            create.isPending ||
-            (data.package !== null && data.package.seatCount !== 1)
+            create.isPending || (data.packages.length > 0 && !selectedPackageId)
           }
           onClick={() =>
             create.mutate(
               {
-                ...(data.package ? { packageId: data.package.id } : {}),
+                ...(selectedPackageId ? { packageId: selectedPackageId } : {}),
                 ...(inviteToken ? { inviteToken } : {}),
               },
               { onSuccess: (registration) => setCreatedId(registration.id) },
@@ -303,6 +345,13 @@ function RegistrationEditor({ registrationId }: { registrationId: string }) {
   const forms = sortedForms(detail.forms);
   const correction = isCorrection(detail);
   const correctionExpired = isCorrectionExpired(detail);
+  const canSave =
+    detail.viewer.capabilities.includes("SAVE_BUYER") ||
+    detail.viewer.capabilities.includes("SAVE_OWN_MEMBER");
+  const canSubmit =
+    detail.viewer.role === "BUYER" &&
+    detail.viewer.capabilities.includes("SUBMIT");
+  const rosterReadyForSubmit = detail.readiness.submittable;
   const update = (id: string, value: string | string[]) => {
     setAnswers((old) => ({ ...old, [id]: value }));
     setErrors((old) => ({ ...old, [id]: "" }));
@@ -363,7 +412,7 @@ function RegistrationEditor({ registrationId }: { registrationId: string }) {
       loadedRevisions.current = revisionFingerprint(saved);
       setDirty(false);
       setNotice(correction ? "Corrections saved." : "Draft saved.");
-      return true;
+      return saved;
     } catch (error) {
       if (axios.isAxiosError(error) && !error.response) {
         setNotice("Save outcome is unknown. Checking the server...");
@@ -377,7 +426,7 @@ function RegistrationEditor({ registrationId }: { registrationId: string }) {
           setDirty(false);
           replace.reset();
           setNotice(correction ? "Corrections saved." : "Draft saved.");
-          return true;
+          return refreshed.data;
         }
         setNotice("The save could not be confirmed. Retry without reloading.");
         return false;
@@ -387,7 +436,16 @@ function RegistrationEditor({ registrationId }: { registrationId: string }) {
     }
   };
   const submitRegistration = async () => {
-    if (dirty && !(await saveDraft(true))) return;
+    let latest = detail;
+    if (dirty) {
+      const saved = await saveDraft(true);
+      if (!saved) return;
+      latest = saved;
+    }
+    if (!latest.readiness.submittable) {
+      setNotice(readinessMessage(latest.readiness));
+      return;
+    }
     setSavedPendingSubmit(true);
     try {
       const submitted = await submit.mutateAsync(idempotencyKey.current);
@@ -513,24 +571,40 @@ function RegistrationEditor({ registrationId }: { registrationId: string }) {
             )}
             <Button
               disabled={
-                correctionExpired || replace.isPending || submit.isPending
+                correctionExpired ||
+                !canSave ||
+                (review && canSubmit && !dirty && !rosterReadyForSubmit) ||
+                replace.isPending ||
+                submit.isPending
               }
               onClick={() =>
-                review ? void submitRegistration() : continueToReview()
+                review
+                  ? canSubmit
+                    ? void submitRegistration()
+                    : void saveDraft(true).then((saved) => {
+                        if (saved) navigate(`/registrations/${registrationId}`);
+                      })
+                  : continueToReview()
               }
             >
               {review
                 ? submit.isPending
                   ? "Submitting..."
-                  : correction
-                    ? "Resubmit corrections"
-                    : "Submit registration"
+                  : canSubmit
+                    ? correction
+                      ? "Resubmit corrections"
+                      : "Submit registration"
+                    : correction
+                      ? "Save my corrections"
+                      : "Save my responses"
                 : "Review answers"}
             </Button>
             {!review && (
               <Button
                 variant="outline"
-                disabled={correctionExpired || !dirty || replace.isPending}
+                disabled={
+                  correctionExpired || !canSave || !dirty || replace.isPending
+                }
                 onClick={() => void saveDraft(false)}
               >
                 {replace.isPending
@@ -553,13 +627,22 @@ function RegistrationEditor({ registrationId }: { registrationId: string }) {
           </p>
           <p className="mt-3 font-bold">{detail.event.name}</p>
           <p className="mt-1 text-sm text-blue-100">
-            {detail.package.name} · {formatPackageAmount(detail.package)}
+            {detail.package.name} · {formatPackageAmount(detail.package)} total
+          </p>
+          <p className="mt-1 text-sm text-blue-100">
+            Exactly {detail.package.seatCount}{" "}
+            {detail.package.seatCount === 1 ? "seat" : "seats"}
           </p>
           <p className="mt-4 text-xs leading-5 text-blue-200">
             {detail.package.priceMinor === "0"
               ? "No payment is required. Your draft stays editable until submission."
               : "After submission, continue to your registration detail to transfer payment and upload proof."}
           </p>
+          {canSubmit && !rosterReadyForSubmit && (
+            <p className="mt-4 rounded-lg bg-white/10 p-3 text-xs leading-5 text-blue-100">
+              {readinessMessage(detail.readiness)}
+            </p>
+          )}
         </aside>
       </section>
     </Shell>

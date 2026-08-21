@@ -13,6 +13,7 @@ export const queryKeys = {
     ["event-registrations", "list", page] as const,
   registration: (registrationId: string) =>
     ["event-registrations", "detail", registrationId] as const,
+  registrationInvitation: ["event-registrations", "invitation"] as const,
   registrationPayment: (registrationId: string) =>
     ["event-registrations", "detail", registrationId, "payment"] as const,
   postRegistrationAssignments: (registrationId: string) =>
