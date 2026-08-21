@@ -16,7 +16,7 @@ import {
   postRegistrationOrganizerNotice,
 } from "./post-registration";
 
-const editable = new Set(["DRAFT"]);
+const editable = new Set(["DRAFT", "NEEDS_CORRECTION"]);
 const cancellable = new Set([
   "DRAFT",
   "AWAITING_MEMBERS",
@@ -95,6 +95,20 @@ export default function RegistrationDetailPage() {
             {data.package.priceMinor !== "0" && data.status !== "DRAFT" && (
               <PaymentPanel registrationId={data.id} />
             )}
+            {data.status === "NEEDS_CORRECTION" && (
+              <section className="mt-5 rounded-2xl border border-amber-300 bg-amber-50 p-6 text-amber-950 sm:p-8">
+                <h2 className="text-xl font-bold">Corrections requested</h2>
+                <p className="mt-2 whitespace-pre-wrap">
+                  {data.correctionReason ??
+                    "Review and correct your responses."}
+                </p>
+                <p className="mt-3 text-sm font-semibold">
+                  {data.correctionDeadlineAt
+                    ? `Submit corrections by ${date(data.correctionDeadlineAt)}.`
+                    : "No correction deadline was provided."}
+                </p>
+              </section>
+            )}
             {data.status === "APPROVED" && (
               <PostRegistrationForms
                 registrationId={data.id}
@@ -171,7 +185,9 @@ export default function RegistrationDetailPage() {
                       )
                     }
                   >
-                    Resume registration
+                    {data.status === "NEEDS_CORRECTION"
+                      ? "Correct registration"
+                      : "Resume registration"}
                   </Button>
                 )}
                 {cancellable.has(data.status) && (

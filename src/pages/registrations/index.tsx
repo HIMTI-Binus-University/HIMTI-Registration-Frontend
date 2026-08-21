@@ -9,7 +9,7 @@ import { AppHeader } from "@/components/layout/app-header";
 import { Button } from "@/components/ui/button";
 import { formatPackageAmount } from "@/utils/money";
 
-const editable = new Set(["DRAFT"]);
+const editable = new Set(["DRAFT", "NEEDS_CORRECTION"]);
 const date = (value: string) =>
   new Intl.DateTimeFormat("en-ID", {
     dateStyle: "medium",
@@ -125,7 +125,11 @@ function Card({ item }: { item: RegistrationSummary }) {
           variant={editable.has(item.status) ? "primary" : "outline"}
         >
           <Link to={`/registrations/${item.id}`}>
-            {editable.has(item.status) ? "Resume" : "View"}
+            {item.status === "NEEDS_CORRECTION"
+              ? "Correct"
+              : editable.has(item.status)
+                ? "Resume"
+                : "View"}
             <ArrowRight className="ml-2 size-4" />
           </Link>
         </Button>

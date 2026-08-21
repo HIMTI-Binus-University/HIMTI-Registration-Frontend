@@ -36,6 +36,12 @@ import {
   DynamicAnswersReview,
   DynamicQuestionField,
 } from "@/components/dynamic-form";
+import {
+  isCompletedSubmissionOutcome,
+  isCorrection,
+  isCorrectionExpired,
+  revisionFingerprint,
+} from "./lifecycle";
 
 export default function EventRegistrationPage() {
   const { eventId = "", subEventId = "" } = useParams();
@@ -259,9 +265,7 @@ function RegistrationEditor({ registrationId }: { registrationId: string }) {
   const [serverChanged, setServerChanged] = useState(false);
   useEffect(() => {
     if (!detail) return;
-    const revisions = detail.submissions
-      .map((item) => `${item.id}:${item.revision}`)
-      .join("|");
+    const revisions = revisionFingerprint(detail);
     if (
       !loadedRevisions.current ||
       (!dirty && loadedRevisions.current !== revisions)
@@ -297,6 +301,8 @@ function RegistrationEditor({ registrationId }: { registrationId: string }) {
       </Shell>
     );
   const forms = sortedForms(detail.forms);
+  const correction = isCorrection(detail);
+  const correctionExpired = isCorrectionExpired(detail);
   const update = (id: string, value: string | string[]) => {
     setAnswers((old) => ({ ...old, [id]: value }));
     setErrors((old) => ({ ...old, [id]: "" }));
@@ -349,17 +355,33 @@ function RegistrationEditor({ registrationId }: { registrationId: string }) {
         return false;
       }
     }
+    const previousRevisions = loadedRevisions.current;
     try {
       const saved = await replace.mutateAsync(
         buildResponsePayload(detail, answers),
       );
-      loadedRevisions.current = saved.submissions
-        .map((item) => `${item.id}:${item.revision}`)
-        .join("|");
+      loadedRevisions.current = revisionFingerprint(saved);
       setDirty(false);
-      setNotice("Draft saved.");
+      setNotice(correction ? "Corrections saved." : "Draft saved.");
       return true;
     } catch (error) {
+      if (axios.isAxiosError(error) && !error.response) {
+        setNotice("Save outcome is unknown. Checking the server...");
+        const refreshed = await query.refetch();
+        if (
+          refreshed.data &&
+          revisionFingerprint(refreshed.data) !== previousRevisions
+        ) {
+          loadedRevisions.current = revisionFingerprint(refreshed.data);
+          setAnswers(answersFromDetail(refreshed.data));
+          setDirty(false);
+          replace.reset();
+          setNotice(correction ? "Corrections saved." : "Draft saved.");
+          return true;
+        }
+        setNotice("The save could not be confirmed. Retry without reloading.");
+        return false;
+      }
       handleDomainError(error);
       return false;
     }
@@ -368,20 +390,29 @@ function RegistrationEditor({ registrationId }: { registrationId: string }) {
     if (dirty && !(await saveDraft(true))) return;
     setSavedPendingSubmit(true);
     try {
-      await submit.mutateAsync(idempotencyKey.current);
+      const submitted = await submit.mutateAsync(idempotencyKey.current);
       setSavedPendingSubmit(false);
-      navigate(`/registrations/${registrationId}`, { replace: true });
+      if (isCompletedSubmissionOutcome(submitted))
+        navigate(`/registrations/${registrationId}`, { replace: true });
+      else
+        setNotice(
+          correction
+            ? "The server still marks this registration as needing correction. Review the latest detail before retrying."
+            : "Submission was not completed. Review the latest draft before retrying.",
+        );
     } catch (error) {
       if (axios.isAxiosError(error) && !error.response) {
         setNotice(
           "Submission outcome is unknown. Checking the registration before retrying...",
         );
         const refreshed = await query.refetch();
-        if (refreshed.data && refreshed.data.status !== "DRAFT")
+        if (refreshed.data && isCompletedSubmissionOutcome(refreshed.data))
           navigate(`/registrations/${registrationId}`, { replace: true });
         else
           setNotice(
-            "Your draft is saved. Retry submission with the same request key.",
+            correction
+              ? "Your corrections remain open and resubmission was not confirmed. Retry with the same request key."
+              : "Your draft is saved. Retry submission with the same request key.",
           );
       } else handleDomainError(error);
     }
@@ -397,6 +428,26 @@ function RegistrationEditor({ registrationId }: { registrationId: string }) {
           <h1 className="mt-2 text-3xl font-bold text-brand-navy">
             {detail.subEvent.name}
           </h1>
+          {correction && (
+            <div className="mt-5 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
+              <p className="font-bold">Organizer requested corrections</p>
+              <p className="mt-1 whitespace-pre-wrap">
+                {detail.correctionReason ??
+                  "Review and correct your responses."}
+              </p>
+              <p className="mt-2 font-semibold">
+                {detail.correctionDeadlineAt
+                  ? `Due ${new Intl.DateTimeFormat("en-ID", { dateStyle: "full", timeStyle: "short" }).format(new Date(detail.correctionDeadlineAt))}`
+                  : "No correction deadline was provided."}
+              </p>
+              {correctionExpired && (
+                <p role="alert" className="mt-2 font-bold text-red-700">
+                  The correction deadline has passed. Changes can no longer be
+                  saved or resubmitted.
+                </p>
+              )}
+            </div>
+          )}
           <div aria-live="polite">
             {(notice || serverChanged) && (
               <p className="mt-4 rounded-lg bg-brand-pale p-3 text-sm text-brand-navy">
@@ -461,7 +512,9 @@ function RegistrationEditor({ registrationId }: { registrationId: string }) {
               </Button>
             )}
             <Button
-              disabled={replace.isPending || submit.isPending}
+              disabled={
+                correctionExpired || replace.isPending || submit.isPending
+              }
               onClick={() =>
                 review ? void submitRegistration() : continueToReview()
               }
@@ -469,16 +522,22 @@ function RegistrationEditor({ registrationId }: { registrationId: string }) {
               {review
                 ? submit.isPending
                   ? "Submitting..."
-                  : "Submit registration"
+                  : correction
+                    ? "Resubmit corrections"
+                    : "Submit registration"
                 : "Review answers"}
             </Button>
             {!review && (
               <Button
                 variant="outline"
-                disabled={!dirty || replace.isPending}
+                disabled={correctionExpired || !dirty || replace.isPending}
                 onClick={() => void saveDraft(false)}
               >
-                {replace.isPending ? "Saving..." : "Save draft"}
+                {replace.isPending
+                  ? "Saving..."
+                  : correction
+                    ? "Save corrections"
+                    : "Save draft"}
               </Button>
             )}
             {review && savedPendingSubmit && (
