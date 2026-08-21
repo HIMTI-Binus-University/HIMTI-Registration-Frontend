@@ -8,6 +8,18 @@ export type FormErrors = Record<string, string>;
 type Form = RegistrationDetail["forms"][number];
 type Question = Form["questions"][number];
 
+export function patternGuidance(question: Question) {
+  if (
+    (question.fieldType === "TEXT" || question.fieldType === "TEXTAREA") &&
+    question.validation.pattern
+  )
+    return (
+      question.validation.patternMessage ??
+      "Use the configured format. It will be checked securely when you save or submit."
+    );
+  return undefined;
+}
+
 const supported = new Set([
   "TEXT",
   "TEXTAREA",
@@ -54,6 +66,8 @@ export function validateAnswers(
       )
         errors[question.id] = "Enter a valid number.";
       const text = typeof value === "string" ? value : "";
+      // Patterns are deliberately not executed with the browser RegExp engine.
+      // The API performs authoritative, bounded full-value validation.
       if (
         !empty &&
         question.validation.minLength !== undefined &&
@@ -129,7 +143,7 @@ export function validateAnswers(
   return errors;
 }
 
-function answerFor(question: Question, value: string | string[]) {
+export function answerFor(question: Question, value: string | string[]) {
   const empty = Array.isArray(value) ? value.length === 0 : value.trim() === "";
   if (empty) return null;
   switch (question.fieldType) {

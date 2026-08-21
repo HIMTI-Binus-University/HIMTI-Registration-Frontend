@@ -8,10 +8,28 @@ export const queryKeys = {
   publicEvents: ["events", "public"] as const,
   publicEvent: (eventId: string) => ["events", "public", eventId] as const,
   registrations: ["event-registrations"] as const,
+  registrationContexts: ["event-registrations", "context"] as const,
   registrationList: (page: number) =>
     ["event-registrations", "list", page] as const,
   registration: (registrationId: string) =>
     ["event-registrations", "detail", registrationId] as const,
+  registrationPayment: (registrationId: string) =>
+    ["event-registrations", "detail", registrationId, "payment"] as const,
+  postRegistrationAssignments: (registrationId: string) =>
+    [
+      "event-registrations",
+      "detail",
+      registrationId,
+      "post-registration-assignments",
+    ] as const,
+  postRegistrationAssignment: (registrationId: string, assignmentId: string) =>
+    [
+      "event-registrations",
+      "detail",
+      registrationId,
+      "post-registration-assignments",
+      assignmentId,
+    ] as const,
   registrationContext: (subEventId: string, inviteToken?: string) =>
     [
       "event-registrations",

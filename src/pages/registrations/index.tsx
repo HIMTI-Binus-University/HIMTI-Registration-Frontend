@@ -7,6 +7,7 @@ import {
 } from "@/api/registrations/queries";
 import { AppHeader } from "@/components/layout/app-header";
 import { Button } from "@/components/ui/button";
+import { formatPackageAmount } from "@/utils/money";
 
 const editable = new Set(["DRAFT"]);
 const date = (value: string) =>
@@ -115,8 +116,8 @@ function Card({ item }: { item: RegistrationSummary }) {
             <CalendarDays className="size-4 text-brand-blue" />
             {date(item.subEvent.date)}
           </p>
-          <p className="mt-2 text-xs font-semibold text-emerald-700">
-            Free · no payment required
+          <p className="mt-2 text-xs font-semibold text-brand-blue">
+            {formatPackageAmount(item.package)}
           </p>
         </div>
         <Button

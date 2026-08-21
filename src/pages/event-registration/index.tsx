@@ -1,4 +1,4 @@
-import { useContext, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ExternalLink } from "lucide-react";
 import {
   Link,
@@ -6,8 +6,6 @@ import {
   useNavigate,
   useParams,
   useSearchParams,
-  useBlocker,
-  UNSAFE_DataRouterContext,
 } from "react-router-dom";
 import { parseApiError } from "@/api/api-error";
 import axios from "axios";
@@ -17,7 +15,6 @@ import {
   useRegistrationContext,
   useReplaceRegistrationResponses,
   useSubmitRegistration,
-  type RegistrationDetail,
 } from "@/api/registrations/queries";
 import { AppHeader } from "@/components/layout/app-header";
 import { Button } from "@/components/ui/button";
@@ -33,6 +30,12 @@ import {
   type Answers,
   type FormErrors,
 } from "./form";
+import { formatPackageAmount } from "@/utils/money";
+import {
+  DirtyNavigationGuard,
+  DynamicAnswersReview,
+  DynamicQuestionField,
+} from "@/components/dynamic-form";
 
 export default function EventRegistrationPage() {
   const { eventId = "", subEventId = "" } = useParams();
@@ -202,16 +205,20 @@ export default function EventRegistrationPage() {
       <State title="Start your registration">
         <p>
           {data.package?.name ?? "Free one-seat registration"} ·{" "}
-          {data.package === null || data.package.priceMinor === "0"
+          {data.package === null
             ? "Free - no payment required"
-            : "Paid registration is not supported yet"}
+            : formatPackageAmount(data.package)}
         </p>
+        {data.package && data.package.seatCount !== 1 && (
+          <p className="mt-2 text-sm text-amber-800">
+            Bundle registration is not available in this flow.
+          </p>
+        )}
         <Button
           className="mt-5"
           disabled={
             create.isPending ||
-            (data.package !== null &&
-              (data.package.priceMinor !== "0" || data.package.seatCount !== 1))
+            (data.package !== null && data.package.seatCount !== 1)
           }
           onClick={() =>
             create.mutate(
@@ -425,7 +432,7 @@ function RegistrationEditor({ registrationId }: { registrationId: string }) {
                 )}
                 <div className="mt-5 space-y-6">
                   {form.questions.map((question) => (
-                    <Question
+                    <DynamicQuestionField
                       key={question.id}
                       question={question}
                       value={answers[question.id]}
@@ -437,7 +444,7 @@ function RegistrationEditor({ registrationId }: { registrationId: string }) {
               </fieldset>
             ))
           ) : (
-            <Review detail={detail} answers={answers} />
+            <DynamicAnswersReview forms={detail.forms} answers={answers} />
           )}
           {(replace.error || submit.error) && (
             <p
@@ -487,10 +494,12 @@ function RegistrationEditor({ registrationId }: { registrationId: string }) {
           </p>
           <p className="mt-3 font-bold">{detail.event.name}</p>
           <p className="mt-1 text-sm text-blue-100">
-            {detail.package.name} · Free
+            {detail.package.name} · {formatPackageAmount(detail.package)}
           </p>
           <p className="mt-4 text-xs leading-5 text-blue-200">
-            No payment is required. Your draft stays editable until submission.
+            {detail.package.priceMinor === "0"
+              ? "No payment is required. Your draft stays editable until submission."
+              : "After submission, continue to your registration detail to transfer payment and upload proof."}
           </p>
         </aside>
       </section>
@@ -498,259 +507,6 @@ function RegistrationEditor({ registrationId }: { registrationId: string }) {
   );
 }
 
-type QuestionType = RegistrationDetail["forms"][number]["questions"][number];
-function Question({
-  question,
-  value,
-  error,
-  update,
-}: {
-  question: QuestionType;
-  value?: string | string[];
-  error?: string;
-  update: (id: string, value: string | string[]) => void;
-}) {
-  const id = `question-${question.id}`;
-  const helpId = `${id}-help`;
-  const errorId = `${id}-error`;
-  const describedBy =
-    [question.helpText ? helpId : "", error ? errorId : ""]
-      .filter(Boolean)
-      .join(" ") || undefined;
-  const common =
-    "mt-2 min-h-11 w-full rounded-lg border border-brand-blue/20 bg-white px-3 py-2 text-brand-ink focus:border-brand-blue focus:outline-none focus:ring-2 focus:ring-brand-blue/20";
-  const options = question.options;
-  let field: React.ReactNode;
-  if (question.fieldType === "TEXTAREA")
-    field = (
-      <textarea
-        id={id}
-        className={`${common} min-h-28`}
-        minLength={question.validation.minLength}
-        maxLength={question.validation.maxLength}
-        aria-invalid={Boolean(error)}
-        aria-describedby={describedBy}
-        value={String(value ?? "")}
-        onChange={(e) => update(question.id, e.target.value)}
-      />
-    );
-  else if (["TEXT", "NUMBER", "DATE"].includes(question.fieldType))
-    field = (
-      <input
-        id={id}
-        type={question.fieldType.toLowerCase()}
-        className={common}
-        min={
-          question.fieldType === "NUMBER"
-            ? question.validation.min
-            : question.fieldType === "DATE"
-              ? question.validation.minDate
-              : undefined
-        }
-        max={
-          question.fieldType === "NUMBER"
-            ? question.validation.max
-            : question.fieldType === "DATE"
-              ? question.validation.maxDate
-              : undefined
-        }
-        minLength={
-          question.fieldType === "TEXT"
-            ? question.validation.minLength
-            : undefined
-        }
-        maxLength={
-          question.fieldType === "TEXT"
-            ? question.validation.maxLength
-            : undefined
-        }
-        aria-invalid={Boolean(error)}
-        aria-describedby={describedBy}
-        value={String(value ?? "")}
-        onChange={(e) => update(question.id, e.target.value)}
-      />
-    );
-  else if (question.fieldType === "SELECT")
-    field = (
-      <select
-        id={id}
-        className={common}
-        aria-invalid={Boolean(error)}
-        aria-describedby={describedBy}
-        value={String(value ?? "")}
-        onChange={(e) => update(question.id, e.target.value)}
-      >
-        <option value="">Select an option</option>
-        {options.map((option) => (
-          <option key={option.id} value={option.id}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-    );
-  else if (question.fieldType === "RADIO" || question.fieldType === "CHECKBOX")
-    field = (
-      <fieldset
-        className="mt-2 grid gap-2"
-        aria-invalid={Boolean(error)}
-        aria-describedby={describedBy}
-      >
-        <legend className="sr-only">{question.label}</legend>
-        {options.map((option) => {
-          const checked = Array.isArray(value)
-            ? value.includes(option.id)
-            : value === option.id;
-          return (
-            <label
-              key={option.id}
-              className="flex min-h-11 items-center gap-3 rounded-lg border border-brand-blue/15 px-3"
-            >
-              <input
-                type={question.fieldType === "RADIO" ? "radio" : "checkbox"}
-                name={question.id}
-                checked={checked}
-                onChange={() =>
-                  update(
-                    question.id,
-                    question.fieldType === "RADIO"
-                      ? option.id
-                      : checked
-                        ? (value as string[]).filter((id) => id !== option.id)
-                        : [...(Array.isArray(value) ? value : []), option.id],
-                  )
-                }
-              />
-              {option.label}
-            </label>
-          );
-        })}
-      </fieldset>
-    );
-  else
-    field = (
-      <p
-        role="alert"
-        className="mt-2 rounded-lg bg-amber-50 p-3 text-sm text-amber-800"
-      >
-        {question.fieldType === "FILE"
-          ? "File upload questions are not supported yet. You cannot submit this form."
-          : `Unsupported question type: ${question.fieldType}`}
-      </p>
-    );
-  return (
-    <div>
-      <label htmlFor={id} className="font-semibold text-brand-navy">
-        {question.label}
-        {question.isRequired && <span className="text-red-700"> *</span>}
-      </label>
-      {question.helpText && (
-        <p id={helpId} className="mt-1 text-sm text-brand-slate">
-          {question.helpText}
-        </p>
-      )}
-      {field}
-      {error && (
-        <p id={errorId} role="alert" className="mt-1 text-sm text-red-700">
-          {error}
-        </p>
-      )}
-    </div>
-  );
-}
-
-function DirtyNavigationGuard({ dirty }: { dirty: boolean }) {
-  const dataRouter = useContext(UNSAFE_DataRouterContext);
-  return dataRouter ? (
-    <DataRouterDirtyGuard dirty={dirty} />
-  ) : (
-    <LegacyDirtyGuard dirty={dirty} />
-  );
-}
-
-function DataRouterDirtyGuard({ dirty }: { dirty: boolean }) {
-  const blocker = useBlocker(dirty);
-  useEffect(() => {
-    if (blocker.state !== "blocked") return;
-    if (confirm("Leave this page? Unsaved registration changes will be lost."))
-      blocker.proceed();
-    else blocker.reset();
-  }, [blocker]);
-  return null;
-}
-
-function LegacyDirtyGuard({ dirty }: { dirty: boolean }) {
-  useEffect(() => {
-    if (!dirty) return;
-    const click = (event: MouseEvent) => {
-      const anchor = (event.target as Element | null)?.closest(
-        "a[href]",
-      ) as HTMLAnchorElement | null;
-      if (
-        anchor &&
-        anchor.origin === location.origin &&
-        !confirm("Leave this page? Unsaved registration changes will be lost.")
-      ) {
-        event.preventDefault();
-        event.stopPropagation();
-      }
-    };
-    const pop = () => {
-      if (
-        !confirm("Leave this page? Unsaved registration changes will be lost.")
-      )
-        history.forward();
-    };
-    document.addEventListener("click", click, true);
-    addEventListener("popstate", pop);
-    return () => {
-      document.removeEventListener("click", click, true);
-      removeEventListener("popstate", pop);
-    };
-  }, [dirty]);
-  return null;
-}
-
-function Review({
-  detail,
-  answers,
-}: {
-  detail: RegistrationDetail;
-  answers: Answers;
-}) {
-  return (
-    <div className="mt-7 space-y-6">
-      {sortedForms(detail.forms).map((form) => (
-        <section key={form.id}>
-          <h2 className="text-xl font-bold text-brand-navy">{form.name}</h2>
-          <dl className="mt-3 divide-y divide-brand-blue/10 rounded-xl border border-brand-blue/10">
-            {form.questions.map((q) => {
-              const raw = answers[q.id];
-              const ids = Array.isArray(raw) ? raw : [raw];
-              const display = ["SELECT", "RADIO", "CHECKBOX"].includes(
-                q.fieldType,
-              )
-                ? ids
-                    .map((id) => q.options.find((o) => o.id === id)?.label)
-                    .filter(Boolean)
-                    .join(", ")
-                : String(raw ?? "");
-              return (
-                <div key={q.id} className="p-4">
-                  <dt className="text-xs font-bold uppercase tracking-wide text-brand-slate">
-                    {q.label}
-                  </dt>
-                  <dd className="mt-1 whitespace-pre-wrap text-brand-navy">
-                    {display || "Not provided"}
-                  </dd>
-                </div>
-              );
-            })}
-          </dl>
-        </section>
-      ))}
-    </div>
-  );
-}
 function Shell({ children }: { children: React.ReactNode }) {
   return (
     <main className="min-h-screen bg-background px-4 py-5 sm:px-6 sm:py-8">

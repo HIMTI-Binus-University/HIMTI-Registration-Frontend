@@ -10,6 +10,7 @@ import EventsPage from "@/pages/events";
 import EventRegistrationPage from "@/pages/event-registration";
 import RegistrationsPage from "@/pages/registrations";
 import RegistrationDetailPage from "@/pages/registration-detail";
+import PostRegistrationFormPage from "@/pages/post-registration-form";
 import { Navigate } from "react-router-dom";
 import type { AppRoute } from "@/types/common";
 import {
@@ -80,6 +81,14 @@ export const routes: AppRoute[] = [
     element: (
       <RequireAuth>
         <RegistrationDetailPage />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: "/registrations/:registrationId/forms/:assignmentId",
+    element: (
+      <RequireAuth>
+        <PostRegistrationFormPage />
       </RequireAuth>
     ),
   },

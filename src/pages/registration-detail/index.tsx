@@ -8,6 +8,13 @@ import {
 import { AppHeader } from "@/components/layout/app-header";
 import { Button } from "@/components/ui/button";
 import { Status } from "@/pages/registrations";
+import { formatPackageAmount } from "@/utils/money";
+import { PaymentPanel } from "./payment-panel";
+import { usePostRegistrationAssignments } from "@/api/post-registration/queries";
+import {
+  postRegistrationCta,
+  postRegistrationOrganizerNotice,
+} from "./post-registration";
 
 const editable = new Set(["DRAFT"]);
 const cancellable = new Set([
@@ -34,6 +41,10 @@ export default function RegistrationDetailPage() {
   const cancel = useCancelRegistration(registrationId);
   const navigate = useNavigate();
   const data = query.data;
+  const assignments = usePostRegistrationAssignments(
+    registrationId,
+    data?.status === "APPROVED",
+  );
   const cancelRegistration = () => {
     if (confirm("Cancel this entire registration? This cannot be undone."))
       cancel.mutate(undefined);
@@ -77,10 +88,19 @@ export default function RegistrationDetailPage() {
                 <CalendarDays className="size-4" />
                 {date(data.subEvent.date)}
               </p>
-              <p className="mt-2 text-sm font-semibold text-emerald-200">
-                Free registration · payment is not required
+              <p className="mt-2 text-sm font-semibold text-blue-100">
+                {formatPackageAmount(data.package)}
               </p>
             </section>
+            {data.package.priceMinor !== "0" && data.status !== "DRAFT" && (
+              <PaymentPanel registrationId={data.id} />
+            )}
+            {data.status === "APPROVED" && (
+              <PostRegistrationForms
+                registrationId={data.id}
+                query={assignments}
+              />
+            )}
             <section className="mt-5 rounded-2xl border border-brand-blue/10 bg-white p-6 sm:p-8">
               <h2 className="text-xl font-bold text-brand-navy">
                 Registration details
@@ -175,6 +195,142 @@ export default function RegistrationDetailPage() {
         )}
       </div>
     </main>
+  );
+}
+
+type AssignmentsQuery = ReturnType<typeof usePostRegistrationAssignments>;
+
+function PostRegistrationForms({
+  registrationId,
+  query,
+}: {
+  registrationId: string;
+  query: AssignmentsQuery;
+}) {
+  return (
+    <section className="mt-5 rounded-2xl border border-brand-blue/10 bg-white p-6 sm:p-8">
+      <h2 className="text-xl font-bold text-brand-navy">
+        Post-registration forms
+      </h2>
+      <p className="mt-1 text-sm text-brand-slate">
+        Complete assigned forms before the event. Server availability controls
+        every action.
+      </p>
+      {query.isPending && (
+        <div
+          role="status"
+          className="mt-5 space-y-3"
+          aria-label="Loading post-registration forms"
+        >
+          <div className="h-28 animate-pulse rounded-xl bg-brand-blue/10" />
+          <div className="h-28 animate-pulse rounded-xl bg-brand-blue/10" />
+        </div>
+      )}
+      {query.isError && (
+        <div
+          role="alert"
+          className="mt-5 rounded-xl bg-red-50 p-4 text-sm text-red-800"
+        >
+          <p>{parseApiError(query.error).message}</p>
+          <Button
+            variant="outline"
+            className="mt-3"
+            onClick={() => void query.refetch()}
+          >
+            Try again
+          </Button>
+        </div>
+      )}
+      {query.data?.length === 0 && (
+        <p className="mt-5 rounded-xl bg-brand-pale p-5 text-sm text-brand-slate">
+          No post-registration forms have been assigned.
+        </p>
+      )}
+      {query.data && query.data.length > 0 && (
+        <div className="mt-5 space-y-4">
+          {[...query.data]
+            .sort((a, b) => a.orderIndex - b.orderIndex)
+            .map((assignment) => {
+              const organizerNotice =
+                postRegistrationOrganizerNotice(assignment);
+              return (
+                <article
+                  key={assignment.id}
+                  className="rounded-xl border border-brand-blue/10 p-5"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <h3 className="font-bold text-brand-navy">
+                        {assignment.formName}
+                      </h3>
+                      {assignment.formDescription && (
+                        <p className="mt-1 text-sm text-brand-slate">
+                          {assignment.formDescription}
+                        </p>
+                      )}
+                    </div>
+                    <span className="rounded-full bg-brand-pale px-3 py-1 text-xs font-bold text-brand-navy">
+                      {assignment.availability.replaceAll("_", " ")}
+                    </span>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold">
+                    <span className="rounded bg-slate-100 px-2 py-1">
+                      Version {assignment.version}
+                    </span>
+                    {assignment.isRequired && (
+                      <span className="rounded bg-amber-100 px-2 py-1 text-amber-900">
+                        Required
+                      </span>
+                    )}
+                    {assignment.blocksCheckIn && (
+                      <span className="rounded bg-red-100 px-2 py-1 text-red-800">
+                        Blocks check-in
+                      </span>
+                    )}
+                    <span className="rounded bg-slate-100 px-2 py-1">
+                      {assignment.completion.replaceAll("_", " ")}
+                    </span>
+                  </div>
+                  <p className="mt-3 text-xs text-brand-slate">
+                    {assignment.opensAt
+                      ? `Opens ${date(assignment.opensAt)}`
+                      : "Available immediately"}
+                    {assignment.closesAt
+                      ? ` · Closes ${date(assignment.closesAt)}`
+                      : " · No normal deadline"}
+                    {organizerNotice?.deadlineAt
+                      ? ` · ${organizerNotice.kind === "correction" ? "Correction due" : "Reopened until"} ${date(organizerNotice.deadlineAt)}`
+                      : ""}
+                  </p>
+                  {organizerNotice && (
+                    <div
+                      className={`mt-3 rounded-lg p-3 text-sm ${organizerNotice.kind === "correction" ? "bg-amber-50 text-amber-900" : "bg-blue-50 text-brand-navy"}`}
+                    >
+                      <p className="font-bold">{organizerNotice.title}</p>
+                      <p className="mt-1 whitespace-pre-wrap">
+                        {organizerNotice.reason ??
+                          "The organizer has made this response available again."}
+                      </p>
+                    </div>
+                  )}
+                  <div className="mt-4 flex justify-end">
+                    <Button
+                      asChild
+                      variant={assignment.canEdit ? "primary" : "outline"}
+                    >
+                      <Link
+                        to={`/registrations/${registrationId}/forms/${assignment.id}`}
+                      >
+                        {postRegistrationCta(assignment)}
+                      </Link>
+                    </Button>
+                  </div>
+                </article>
+              );
+            })}
+        </div>
+      )}
+    </section>
   );
 }
 function Info({ label, value }: { label: string; value: string }) {

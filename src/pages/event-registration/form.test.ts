@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import type { RegistrationDetail } from "@/api/registrations/queries";
-import { buildResponsePayload, validateAnswers } from "./form";
+import { buildResponsePayload, patternGuidance, validateAnswers } from "./form";
 
 const detail = {
   forms: [
@@ -133,5 +133,23 @@ describe("participant form contract", () => {
         },
       ],
     });
+  });
+
+  test("preserves pattern metadata as guidance without executing it", () => {
+    const question = {
+      ...detail.forms[0].questions[0],
+      validation: {
+        pattern: "(a+)+$",
+        patternMessage: "Use your full participant code, for example ABC-123.",
+      },
+    };
+    expect(patternGuidance(question)).toBe(
+      "Use your full participant code, for example ABC-123.",
+    );
+    expect(
+      validateAnswers([{ ...detail.forms[0], questions: [question] }], {
+        name: "aaaaaaaa!",
+      }),
+    ).toEqual({});
   });
 });
