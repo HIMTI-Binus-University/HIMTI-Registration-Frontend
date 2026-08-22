@@ -22,4 +22,14 @@ describe("participant readiness copy", () => {
       >[0]),
     ).toBe("This registration is ready to submit.");
   });
+
+  test("tolerates a stale cached readiness response", () => {
+    expect(
+      readinessMessage({
+        submittable: false,
+        seatCount: 3,
+        activeMemberCount: 2,
+      } as Parameters<typeof readinessMessage>[0]),
+    ).toContain("2 of 3 seats claimed; 0 of 0 required responses complete");
+  });
 });
