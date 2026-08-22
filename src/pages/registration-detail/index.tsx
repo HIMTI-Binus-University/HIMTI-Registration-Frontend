@@ -16,20 +16,11 @@ import {
   postRegistrationOrganizerNotice,
 } from "./post-registration";
 import { RosterPanel } from "./invitations";
-import { canOpenResponseEditor, shouldQueryPayment } from "./lifecycle";
-
-const cancellable = new Set([
-  "DRAFT",
-  "AWAITING_MEMBERS",
-  "HOLDING",
-  "SUBMITTED",
-  "PENDING_PAYMENT",
-  "PAYMENT_REVIEW",
-  "PENDING_APPROVAL",
-  "APPROVED",
-  "NEEDS_CORRECTION",
-  "WAITLISTED",
-]);
+import {
+  canCancelRegistration,
+  canOpenResponseEditor,
+  shouldQueryPayment,
+} from "./lifecycle";
 const date = (value: string) =>
   new Intl.DateTimeFormat("en-ID", {
     dateStyle: "full",
@@ -42,7 +33,6 @@ export default function RegistrationDetailPage() {
   const cancel = useCancelRegistration(registrationId);
   const navigate = useNavigate();
   const data = query.data;
-  const canCancel = data?.viewer.capabilities.includes("CANCEL");
   const canManageInvitations =
     data?.viewer.capabilities.includes("MANAGE_INVITATIONS");
   const assignments = usePostRegistrationAssignments(
@@ -204,7 +194,7 @@ export default function RegistrationDetailPage() {
                         : "Edit registration"}
                   </Button>
                 )}
-                {cancellable.has(data.status) && canCancel && (
+                {canCancelRegistration(data) && (
                   <Button
                     variant="outline"
                     className="border-red-300 text-red-700"

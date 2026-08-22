@@ -1,6 +1,10 @@
 import { describe, expect, test } from "vitest";
 import type { RegistrationDetail } from "@/api/registrations/queries";
-import { canOpenResponseEditor, shouldQueryPayment } from "./lifecycle";
+import {
+  canCancelRegistration,
+  canOpenResponseEditor,
+  shouldQueryPayment,
+} from "./lifecycle";
 
 const detail = (
   status: RegistrationDetail["status"],
@@ -32,5 +36,21 @@ describe("participant detail lifecycle", () => {
   test("keeps payment buyer-only", () => {
     expect(shouldQueryPayment(detail("PENDING_PAYMENT", "MEMBER"))).toBe(false);
     expect(shouldQueryPayment(detail("PENDING_PAYMENT"))).toBe(true);
+  });
+
+  test("never allows participant cancellation after approval", () => {
+    const value = detail("APPROVED");
+    value.viewer.capabilities = ["CANCEL"];
+    expect(canCancelRegistration(value)).toBe(false);
+  });
+
+  test("allows authorized cancellation before approval", () => {
+    const value = detail("PENDING_APPROVAL");
+    value.viewer.capabilities = ["CANCEL"];
+    expect(canCancelRegistration(value)).toBe(true);
+  });
+
+  test("does not infer cancellation without the capability", () => {
+    expect(canCancelRegistration(detail("PENDING_APPROVAL"))).toBe(false);
   });
 });
