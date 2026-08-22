@@ -13,4 +13,9 @@ describe("participant registration query keys", () => {
       "order-1",
     ]);
   });
+
+  test("separates ticket metadata from private credentials", () => {
+    expect(queryKeys.ticket("ticket/1")).toEqual(["event-tickets", "detail", "ticket/1"]);
+    expect(queryKeys.ticketCredential("ticket/1")).toEqual(["event-tickets", "credential", "ticket/1"]);
+  });
 });

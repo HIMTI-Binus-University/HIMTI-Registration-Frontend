@@ -1,4 +1,4 @@
-import { ArrowLeft, CalendarDays } from "lucide-react";
+import { ArrowLeft, CalendarDays, Ticket } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { parseApiError } from "@/api/api-error";
 import {
@@ -104,6 +104,12 @@ export default function RegistrationDetailPage() {
                     ? `Submit corrections by ${date(data.correctionDeadlineAt)}.`
                     : "No correction deadline was provided."}
                 </p>
+              </section>
+            )}
+            {data.status === "APPROVED" && (
+              <section className="mt-5 flex flex-col gap-4 rounded-2xl border border-brand-blue/10 bg-white p-6 sm:flex-row sm:items-center sm:justify-between sm:p-8">
+                <div><h2 className="flex items-center gap-2 text-xl font-bold text-brand-navy"><Ticket className="size-5" />Your event ticket</h2><p className="mt-1 text-sm text-brand-slate">Open the ticket assigned to your account. Other bundle members must use their own accounts.</p></div>
+                <Button asChild className="shrink-0"><Link to="/tickets">View my tickets</Link></Button>
               </section>
             )}
             {data.status === "APPROVED" && (

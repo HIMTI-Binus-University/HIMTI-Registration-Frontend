@@ -12,6 +12,9 @@ import RegistrationsPage from "@/pages/registrations";
 import RegistrationDetailPage from "@/pages/registration-detail";
 import PostRegistrationFormPage from "@/pages/post-registration-form";
 import RegistrationInvitationPage from "@/pages/registration-invitation";
+import TicketsPage from "@/pages/tickets";
+import TicketDetailPage from "@/pages/ticket-detail";
+import TicketPresentPage from "@/pages/ticket-present";
 import { Navigate } from "react-router-dom";
 import type { AppRoute } from "@/types/common";
 import {
@@ -76,6 +79,18 @@ export const routes: AppRoute[] = [
         <RegistrationInvitationPage />
       </RequireAuth>
     ),
+  },
+  {
+    path: "/tickets",
+    element: <RequireAuth><TicketsPage /></RequireAuth>,
+  },
+  {
+    path: "/tickets/:ticketId",
+    element: <RequireAuth><TicketDetailPage /></RequireAuth>,
+  },
+  {
+    path: "/tickets/:ticketId/present",
+    element: <RequireAuth><TicketPresentPage /></RequireAuth>,
   },
   {
     path: "/registrations",

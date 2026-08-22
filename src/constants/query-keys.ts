@@ -38,5 +38,10 @@ export const queryKeys = {
       subEventId,
       inviteToken ?? null,
     ] as const,
+  tickets: ["event-tickets"] as const,
+  ticketList: ["event-tickets", "list"] as const,
+  ticket: (ticketId: string) => ["event-tickets", "detail", ticketId] as const,
+  ticketCredential: (ticketId: string) =>
+    ["event-tickets", "credential", ticketId] as const,
   session: ["session"] as const,
 } as const;
