@@ -16,6 +16,7 @@ const assignment = {
   version: 7,
   audience: "BUYER",
   memberId: null,
+  participant: { id: "user-1", name: "Daffa", email: "daffa@example.com" },
   isRequired: true,
   blocksCheckIn: true,
   opensAt: null,
@@ -69,11 +70,17 @@ const assignment = {
     revision: 3,
     status: "DRAFT",
     answers: [
-      { questionId: "text-1", type: "TEXT", value: "Daffa" },
+      {
+        questionId: "text-1",
+        type: "TEXT",
+        value: "Daffa",
+        selectedOptions: [],
+      },
       {
         questionId: "check-1",
         type: "CHECKBOX",
         value: ["option-1"],
+        selectedOptions: [{ id: "option-1", label: "Web", value: "web" }],
       },
     ],
   },
