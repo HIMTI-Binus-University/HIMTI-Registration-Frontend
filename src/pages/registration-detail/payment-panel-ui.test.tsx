@@ -113,6 +113,57 @@ test("renders stale payment responses with safe upload defaults", () => {
 
   render(<PaymentPanel registrationId="registration-1" />);
 
-  expect(screen.getByText(/JPEG, PNG, WEBP, PDF up to 10 MB/i)).toBeInTheDocument();
+  expect(
+    screen.getByText(/JPEG, PNG, WEBP, PDF up to 10 MB/i),
+  ).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Submit proof" })).toBeDisabled();
+});
+
+test("hides proof upload for a verified payment", () => {
+  vi.mocked(useParticipantPayment).mockReturnValue({
+    isPending: false,
+    isError: false,
+    data: {
+      id: "payment-verified",
+      registrationOrderId: "registration-1",
+      orderNumber: "REG-001",
+      orderStatus: "PENDING_APPROVAL",
+      amountMinor: "25000",
+      currency: "IDR",
+      status: "VERIFIED",
+      revision: 3,
+      expiresAt: "2026-08-20T12:00:00.000Z",
+      deadlineExpired: false,
+      submittedAt: "2026-08-19T12:00:00.000Z",
+      verifiedAt: "2026-08-19T13:00:00.000Z",
+      rejectionReason: null,
+      canUploadProof: false,
+      canReplaceProof: false,
+      bankSnapshot: {
+        bankName: "BCA",
+        accountHolder: "HIMTI BINUS",
+        accountNumber: "1234567890",
+        instructions: null,
+        acceptedProofTypes: ["image/png"],
+        maxProofBytes: 5 * 1024 * 1024,
+      },
+      proofs: [],
+      history: [],
+    },
+  } as never);
+  vi.mocked(useSubmitPaymentProof).mockReturnValue({
+    isPending: false,
+    isError: false,
+    mutateAsync: vi.fn(),
+  } as never);
+
+  render(<PaymentPanel registrationId="registration-1" />);
+
+  expect(screen.getByText(/no further payment action/i)).toBeInTheDocument();
+  expect(
+    screen.queryByText(/choose or drop a proof file/i),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: /proof/i }),
+  ).not.toBeInTheDocument();
 });

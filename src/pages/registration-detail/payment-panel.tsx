@@ -15,7 +15,7 @@ import { validateProofFile } from "./payment-file";
 const statusCopy: Record<ParticipantPayment["status"], string> = {
   UNPAID: "Upload your transfer proof before the deadline.",
   PROOF_SUBMITTED:
-    "Your proof is awaiting review. You may replace it while review is available.",
+    "Your proof is awaiting review. No replacement is available during review.",
   REJECTED:
     "Your latest proof was rejected. Review the reason and upload a replacement.",
   VERIFIED: "Payment verified. No further payment action is needed.",
