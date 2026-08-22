@@ -3,6 +3,7 @@ import { FileCheck2, Upload } from "lucide-react";
 import { parseApiError } from "@/api/api-error";
 import {
   getPrivateProofBlob,
+  normalizeParticipantPayment,
   useParticipantPayment,
   useSubmitPaymentProof,
   type ParticipantPayment,
@@ -73,8 +74,9 @@ function PaymentContent({
   const [progress, setProgress] = useState(0);
   const input = useRef<HTMLInputElement>(null);
   const upload = useSubmitPaymentProof(registrationId, payment.id);
-  const accepted = payment.bankSnapshot.acceptedProofTypes;
-  const maxBytes = payment.bankSnapshot.maxProofBytes;
+  const normalizedPayment = normalizeParticipantPayment(payment);
+  const accepted = normalizedPayment.bankSnapshot.acceptedProofTypes;
+  const maxBytes = normalizedPayment.bankSnapshot.maxProofBytes;
   const choose = (next?: File) => {
     setFileError("");
     setFile(null);

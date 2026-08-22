@@ -7,6 +7,36 @@ export type ParticipantPayment =
   components["schemas"]["ParticipantEventPaymentDetailV1"];
 
 type PaymentResponse = { data: ParticipantPayment; msg: "success" };
+const fallbackProofTypes: ParticipantPayment["bankSnapshot"]["acceptedProofTypes"] = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "application/pdf",
+];
+const fallbackMaxProofBytes = 10 * 1024 * 1024;
+
+export const normalizeParticipantPayment = (
+  payment: ParticipantPayment,
+): ParticipantPayment => {
+  const snapshot = payment.bankSnapshot as Partial<
+    ParticipantPayment["bankSnapshot"]
+  >;
+  return {
+    ...payment,
+    bankSnapshot: {
+      ...payment.bankSnapshot,
+      acceptedProofTypes: Array.isArray(snapshot.acceptedProofTypes)
+        ? snapshot.acceptedProofTypes
+        : fallbackProofTypes,
+      maxProofBytes:
+        typeof snapshot.maxProofBytes === "number" &&
+        Number.isFinite(snapshot.maxProofBytes) &&
+        snapshot.maxProofBytes > 0
+          ? snapshot.maxProofBytes
+          : fallbackMaxProofBytes,
+    },
+  };
+};
 type UploadResponse = {
   data: {
     paymentId: string;
@@ -24,7 +54,7 @@ export function useParticipantPayment(registrationId: string, enabled = true) {
         .get<PaymentResponse>(
           `/api/v1/me/event-registrations/${encodeURIComponent(registrationId)}/payment`,
         )
-        .then(({ data }) => data.data),
+        .then(({ data }) => normalizeParticipantPayment(data.data)),
     enabled: enabled && Boolean(registrationId),
   });
 }
