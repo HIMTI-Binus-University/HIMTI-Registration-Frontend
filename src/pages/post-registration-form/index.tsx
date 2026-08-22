@@ -27,7 +27,7 @@ import {
   assignmentForms,
   buildAssignmentPayload,
 } from "./form";
-import { postRegistrationOrganizerNotice } from "@/pages/registration-detail/post-registration";
+import { postRegistrationAvailability, postRegistrationOrganizerNotice } from "@/pages/registration-detail/post-registration";
 
 const formatDate = (value: string) =>
   new Intl.DateTimeFormat("en-ID", {
@@ -74,7 +74,7 @@ export default function PostRegistrationFormPage() {
       <Shell>
         <State
           title={
-            query.isError ? "Form could not be loaded" : "Loading assigned form"
+            query.isError ? "Form could not be loaded" : "Loading form"
           }
         >
           {query.isError && (
@@ -118,7 +118,7 @@ export default function PostRegistrationFormPage() {
       ["REVISION_CONFLICT", "RESPONSE_REVISION_CONFLICT"].includes(
         parsed.code ?? "",
       )
-        ? "This response changed on the server. Reload the latest response before editing again."
+        ? "This response changed in another session. Reload the latest response before editing again."
         : parsed.message,
     );
     if (!axios.isAxiosError(error) || error.response)
@@ -186,8 +186,8 @@ export default function PostRegistrationFormPage() {
           <div>
             <p className="text-xs font-bold uppercase tracking-widest text-brand-blue">
               {review
-                ? "Review assigned form"
-                : `Form version ${assignment.version}`}
+                ? "Review your answers"
+                : "Form to complete"}
             </p>
             <h1 className="mt-2 text-3xl font-bold text-brand-navy">
               {assignment.formName}
@@ -199,7 +199,7 @@ export default function PostRegistrationFormPage() {
             )}
           </div>
           <span className="rounded-full bg-brand-pale px-3 py-1 text-xs font-bold text-brand-navy">
-            {assignment.availability.replaceAll("_", " ")}
+            {postRegistrationAvailability(assignment.availability)}
           </span>
         </div>
         <AssignmentNotice assignment={assignment} />
@@ -213,8 +213,7 @@ export default function PostRegistrationFormPage() {
         )}
         {readOnly && (
           <p className="mt-5 rounded-lg bg-slate-100 p-3 text-sm text-brand-slate">
-            This exact form version is read-only. Saved responses remain
-            available to review.
+            This form can no longer be changed, but you can still review your answers.
           </p>
         )}
         {!review ? (
@@ -311,8 +310,7 @@ function AssignmentNotice({
         )}
         {organizerNotice.kind === "correction" && (
           <p className="mt-2">
-            Correction access is controlled by the server even after the normal
-            form window closes.
+            You can update your answers during this correction period, even though the original form window has closed.
           </p>
         )}
       </div>
@@ -322,7 +320,7 @@ function AssignmentNotice({
       <p className="mt-5 rounded-lg bg-blue-50 p-3 text-sm text-brand-navy">
         This form opens{" "}
         {assignment.opensAt ? formatDate(assignment.opensAt) : "later"}. You can
-        review its exact questions now.
+        review the questions now.
       </p>
     );
   if (assignment.availability === "OVERDUE")

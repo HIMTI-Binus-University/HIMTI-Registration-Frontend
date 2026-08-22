@@ -9,6 +9,14 @@ export function postRegistrationCta(assignment: PostRegistrationAssignment) {
   return assignment.availability === "UPCOMING" ? "Preview form" : "View form";
 }
 
+export function postRegistrationAvailability(availability: string) {
+  return ({ OPEN: "Available now", UPCOMING: "Opens later", OVERDUE: "Closed", CORRECTION: "Correction requested", COMPLETED: "Completed" }[availability] ?? "View details");
+}
+
+export function postRegistrationCompletion(completion: string) {
+  return ({ NOT_STARTED: "Not started", DRAFT: "In progress", NEEDS_CORRECTION: "Needs an update", SUBMITTED: "Completed", LOCKED: "Completed" }[completion] ?? "Status available in form");
+}
+
 export function postRegistrationOrganizerNotice(
   assignment: PostRegistrationAssignment,
 ) {

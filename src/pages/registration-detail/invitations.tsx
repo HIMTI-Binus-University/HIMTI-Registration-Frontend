@@ -9,6 +9,7 @@ import {
 import { parseApiError } from "@/api/api-error";
 import { Button } from "@/components/ui/button";
 import { invitationUrl } from "./invitation-link";
+import { rosterReadinessPresentation } from "./roster-readiness";
 
 export function RosterPanel({ detail }: { detail: RegistrationDetail }) {
   const create = useCreateRegistrationInvitation(detail.id);
@@ -19,6 +20,7 @@ export function RosterPanel({ detail }: { detail: RegistrationDetail }) {
     InvitationMutation | undefined
   >();
   const [copied, setCopied] = useState(false);
+  const presentation = rosterReadinessPresentation(detail);
 
   const mutationError = create.error ?? resend.error ?? revoke.error;
   const saveRaw = (invitation: InvitationMutation) => {
@@ -56,15 +58,16 @@ export function RosterPanel({ detail }: { detail: RegistrationDetail }) {
           </p>
         </div>
         <span
-          className={`rounded-full px-3 py-1 text-xs font-bold ${detail.readiness.submittable ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-900"}`}
+          className={`rounded-full px-3 py-1 text-xs font-bold ${presentation.rosterComplete ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-900"}`}
         >
-          {detail.readiness.submittable ? "Ready to submit" : "Not ready"}
+          {presentation.badge}
         </span>
       </div>
-      {!detail.readiness.submittable &&
+      <p className="mt-3 rounded-lg bg-brand-pale p-3 text-sm text-brand-navy">{presentation.workflow}</p>
+      {presentation.showSubmissionBlockers &&
         detail.readiness.blockerCodes.length > 0 && (
           <p className="mt-3 text-sm text-amber-900">
-            Blockers:{" "}
+            Before you can submit:{" "}
             {detail.readiness.blockerCodes
               .join(", ")
               .replaceAll("_", " ")
@@ -88,7 +91,7 @@ export function RosterPanel({ detail }: { detail: RegistrationDetail }) {
         <div className="mt-4 rounded-xl border border-emerald-300 bg-emerald-50 p-4 text-sm text-emerald-950">
           <p className="font-bold">Invitation link ready</p>
           <p className="mt-1">
-            This raw link is shown once. Copy it now and send it securely to{" "}
+            This link is shown once. Copy it now and send it securely to{" "}
             {rawInvitation.email}.
           </p>
           <div className="mt-3 flex flex-wrap gap-2">

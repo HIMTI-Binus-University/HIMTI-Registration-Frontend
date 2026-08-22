@@ -13,6 +13,8 @@ import { PaymentPanel } from "./payment-panel";
 import { usePostRegistrationAssignments } from "@/api/post-registration/queries";
 import {
   postRegistrationCta,
+  postRegistrationAvailability,
+  postRegistrationCompletion,
   postRegistrationOrganizerNotice,
 } from "./post-registration";
 import { RosterPanel } from "./invitations";
@@ -230,11 +232,10 @@ function PostRegistrationForms({
   return (
     <section className="mt-5 rounded-2xl border border-brand-blue/10 bg-white p-6 sm:p-8">
       <h2 className="text-xl font-bold text-brand-navy">
-        Post-registration forms
+        Forms to complete
       </h2>
       <p className="mt-1 text-sm text-brand-slate">
-        Complete assigned forms before the event. Server availability controls
-        every action.
+        Review any information the organizer needs from you before the event.
       </p>
       {query.isPending && (
         <div
@@ -263,7 +264,7 @@ function PostRegistrationForms({
       )}
       {query.data?.length === 0 && (
         <p className="mt-5 rounded-xl bg-brand-pale p-5 text-sm text-brand-slate">
-          No post-registration forms have been assigned.
+          You do not have any additional forms to complete.
         </p>
       )}
       {query.data && query.data.length > 0 && (
@@ -290,12 +291,12 @@ function PostRegistrationForms({
                       )}
                     </div>
                     <span className="rounded-full bg-brand-pale px-3 py-1 text-xs font-bold text-brand-navy">
-                      {assignment.availability.replaceAll("_", " ")}
+                      {postRegistrationAvailability(assignment.availability)}
                     </span>
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold">
                     <span className="rounded bg-slate-100 px-2 py-1">
-                      Version {assignment.version}
+                      Current form
                     </span>
                     {assignment.isRequired && (
                       <span className="rounded bg-amber-100 px-2 py-1 text-amber-900">
@@ -304,11 +305,11 @@ function PostRegistrationForms({
                     )}
                     {assignment.blocksCheckIn && (
                       <span className="rounded bg-red-100 px-2 py-1 text-red-800">
-                        Blocks check-in
+                        Complete before check-in
                       </span>
                     )}
                     <span className="rounded bg-slate-100 px-2 py-1">
-                      {assignment.completion.replaceAll("_", " ")}
+                      {postRegistrationCompletion(assignment.completion)}
                     </span>
                   </div>
                   <p className="mt-3 text-xs text-brand-slate">

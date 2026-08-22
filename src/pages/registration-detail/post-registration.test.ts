@@ -1,9 +1,18 @@
 import { expect, test } from "vitest";
 import type { PostRegistrationAssignment } from "@/api/post-registration/queries";
 import {
+  postRegistrationAvailability,
+  postRegistrationCompletion,
   postRegistrationCta,
   postRegistrationOrganizerNotice,
 } from "./post-registration";
+
+test("maps form states to participant-friendly labels", () => {
+  expect(postRegistrationAvailability("UPCOMING")).toBe("Opens later");
+  expect(postRegistrationAvailability("COMPLETED")).toBe("Completed");
+  expect(postRegistrationCompletion("DRAFT")).toBe("In progress");
+  expect(postRegistrationCompletion("LOCKED")).toBe("Completed");
+});
 
 const assignment = {
   canEdit: false,
