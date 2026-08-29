@@ -12,7 +12,7 @@ export type SavePostRegistrationResponse =
   operations["saveMyPostRegistrationResponseV1"]["requestBody"]["content"]["application/json"];
 
 const assignmentsPath = (registrationId: string) =>
-  `/api/v1/me/event-registrations/${encodeURIComponent(registrationId)}/post-registration-assignments`;
+  `/api/me/event-registrations/${encodeURIComponent(registrationId)}/post-registration-assignments`;
 const assignmentPath = (registrationId: string, assignmentId: string) =>
   `${assignmentsPath(registrationId)}/${encodeURIComponent(assignmentId)}`;
 

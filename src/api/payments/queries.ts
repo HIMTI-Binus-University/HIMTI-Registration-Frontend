@@ -7,12 +7,8 @@ export type ParticipantPayment =
   components["schemas"]["ParticipantEventPaymentDetailV1"];
 
 type PaymentResponse = { data: ParticipantPayment; msg: "success" };
-const fallbackProofTypes: ParticipantPayment["bankSnapshot"]["acceptedProofTypes"] = [
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-  "application/pdf",
-];
+const fallbackProofTypes: ParticipantPayment["bankSnapshot"]["acceptedProofTypes"] =
+  ["image/jpeg", "image/png", "image/webp", "application/pdf"];
 const fallbackMaxProofBytes = 10 * 1024 * 1024;
 
 export const normalizeParticipantPayment = (
@@ -52,7 +48,7 @@ export function useParticipantPayment(registrationId: string, enabled = true) {
     queryFn: () =>
       apiClient
         .get<PaymentResponse>(
-          `/api/v1/me/event-registrations/${encodeURIComponent(registrationId)}/payment`,
+          `/api/me/event-registrations/${encodeURIComponent(registrationId)}/payment`,
         )
         .then(({ data }) => normalizeParticipantPayment(data.data)),
     enabled: enabled && Boolean(registrationId),
@@ -76,7 +72,7 @@ export function useSubmitPaymentProof(
       body.append("proof", file);
       return apiClient
         .post<UploadResponse>(
-          `/api/v1/me/event-payments/${encodeURIComponent(paymentId)}/proof`,
+          `/api/me/event-payments/${encodeURIComponent(paymentId)}/proof`,
           body,
           {
             onUploadProgress: ({ loaded, total }) => {

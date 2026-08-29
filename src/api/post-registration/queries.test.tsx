@@ -50,11 +50,11 @@ test("loads assignment list and exact detail from participant paths", async () =
 
   expect(apiClient.get).toHaveBeenNthCalledWith(
     1,
-    "/api/v1/me/event-registrations/registration%201/post-registration-assignments",
+    "/api/me/event-registrations/registration%201/post-registration-assignments",
   );
   expect(apiClient.get).toHaveBeenNthCalledWith(
     2,
-    "/api/v1/me/event-registrations/registration%201/post-registration-assignments/assignment%2F1",
+    "/api/me/event-registrations/registration%201/post-registration-assignments/assignment%2F1",
   );
 });
 
@@ -70,7 +70,7 @@ test("saves CAS payload and invalidates the assignment list", async () => {
   await act(() => hook.result.current.mutateAsync(body));
 
   expect(apiClient.put).toHaveBeenCalledWith(
-    "/api/v1/me/event-registrations/registration%201/post-registration-assignments/assignment%2F1/response",
+    "/api/me/event-registrations/registration%201/post-registration-assignments/assignment%2F1/response",
     body,
   );
   expect(invalidate).toHaveBeenCalledWith({
@@ -91,7 +91,7 @@ test("submits revision with idempotency header and invalidates list", async () =
   );
 
   expect(apiClient.post).toHaveBeenCalledWith(
-    "/api/v1/me/event-registrations/registration%201/post-registration-assignments/assignment%2F1/submit",
+    "/api/me/event-registrations/registration%201/post-registration-assignments/assignment%2F1/submit",
     { revision: 4 },
     { headers: { "Idempotency-Key": "key-1" } },
   );

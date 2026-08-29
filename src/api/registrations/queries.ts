@@ -26,7 +26,7 @@ type InvitationContextResponse =
   operations["getRegistrationInvitationContextV1"]["responses"][200]["content"]["application/json"];
 
 const detailPath = (id: string) =>
-  `/api/v1/me/event-registrations/${encodeURIComponent(id)}`;
+  `/api/me/event-registrations/${encodeURIComponent(id)}`;
 
 export function useRegistrationContext(
   subEventId: string,
@@ -37,7 +37,7 @@ export function useRegistrationContext(
     queryFn: () =>
       apiClient
         .get<ContextResponse>(
-          `/api/v1/sub-events/${encodeURIComponent(subEventId)}/registration-context`,
+          `/api/sub-events/${encodeURIComponent(subEventId)}/registration-context`,
           { params: inviteToken ? { inviteToken } : undefined },
         )
         .then(({ data }) => data.data),
@@ -51,7 +51,7 @@ export function useMyRegistrations(page = 1) {
     queryKey: queryKeys.registrationList(page),
     queryFn: () =>
       apiClient
-        .get<ListResponse>("/api/v1/me/event-registrations", {
+        .get<ListResponse>("/api/me/event-registrations", {
           params: { page, limit: 50 },
         })
         .then(({ data }) => data),
@@ -92,7 +92,7 @@ export function useCreateRegistration(subEventId: string) {
     mutationFn: (body: CreateRequest) =>
       apiClient
         .post<DetailResponse>(
-          `/api/v1/sub-events/${encodeURIComponent(subEventId)}/registrations`,
+          `/api/sub-events/${encodeURIComponent(subEventId)}/registrations`,
           body,
         )
         .then(({ data }) => data.data),
@@ -147,7 +147,7 @@ export function useInvitationContext(token: string) {
     queryFn: () =>
       apiClient
         .post<InvitationContextResponse>(
-          "/api/v1/registration-invitations/context",
+          "/api/registration-invitations/context",
           { token },
         )
         .then(({ data }) => data.data),
@@ -162,7 +162,7 @@ export function useAcceptInvitation(token: string) {
   return useMutation({
     mutationFn: () =>
       apiClient
-        .post<DetailResponse>("/api/v1/registration-invitations/accept", {
+        .post<DetailResponse>("/api/registration-invitations/accept", {
           token,
         })
         .then(({ data }) => data.data),
@@ -176,7 +176,7 @@ export function useDeclineInvitation(token: string) {
     mutationFn: () =>
       apiClient
         .post<DeclineInvitationResponse>(
-          "/api/v1/registration-invitations/decline",
+          "/api/registration-invitations/decline",
           { token },
         )
         .then(({ data }) => data.data),

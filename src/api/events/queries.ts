@@ -32,7 +32,7 @@ export function usePublicEvents(page = 1) {
     queryKey: [...queryKeys.publicEvents, page],
     queryFn: () =>
       apiClient
-        .get<PublicEventListResponse>("/api/v1/events", {
+        .get<PublicEventListResponse>("/api/events", {
           params: { page, limit: 50 },
         })
         .then(({ data }) => data),
@@ -45,7 +45,7 @@ export function usePublicEvent(eventId: string) {
     queryFn: () =>
       apiClient
         .get<PublicEventDetailResponse>(
-          `/api/v1/events/${encodeURIComponent(eventId)}`,
+          `/api/events/${encodeURIComponent(eventId)}`,
         )
         .then(({ data }) => data.data),
     enabled: Boolean(eventId),

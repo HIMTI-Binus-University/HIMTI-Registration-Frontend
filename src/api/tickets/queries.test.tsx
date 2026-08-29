@@ -16,7 +16,9 @@ const ticket = {
 };
 
 function wrapper({ children }: { children: ReactNode }) {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
   return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
 }
 
@@ -30,25 +32,38 @@ test("loads only participant-owned list and detail paths", async () => {
   await waitFor(() => expect(list.result.current.isSuccess).toBe(true));
   const detail = renderHook(() => useMyTicket("ticket/1"), { wrapper });
   await waitFor(() => expect(detail.result.current.isSuccess).toBe(true));
-  expect(apiClient.get).toHaveBeenNthCalledWith(1, "/api/v1/me/event-tickets");
-  expect(apiClient.get).toHaveBeenNthCalledWith(2, "/api/v1/me/event-tickets/ticket%2F1");
+  expect(apiClient.get).toHaveBeenNthCalledWith(1, "/api/me/event-tickets");
+  expect(apiClient.get).toHaveBeenNthCalledWith(
+    2,
+    "/api/me/event-tickets/ticket%2F1",
+  );
 });
 
 test("does not fetch a credential before the ticket is confirmed presentable", async () => {
-  const hook = renderHook(() => useTicketCredential("ticket/1", false), { wrapper });
+  const hook = renderHook(() => useTicketCredential("ticket/1", false), {
+    wrapper,
+  });
   await waitFor(() => expect(hook.result.current.fetchStatus).toBe("idle"));
   expect(apiClient.get).not.toHaveBeenCalled();
 });
 
 test("fetches the owned credential only in presentation mode", async () => {
-  vi.mocked(apiClient.get).mockResolvedValue({ data: { msg: "success", data: { credential: "ht1_private" } } });
-  const hook = renderHook(() => useTicketCredential("ticket/1", true), { wrapper });
+  vi.mocked(apiClient.get).mockResolvedValue({
+    data: { msg: "success", data: { credential: "ht1_private" } },
+  });
+  const hook = renderHook(() => useTicketCredential("ticket/1", true), {
+    wrapper,
+  });
   await waitFor(() => expect(hook.result.current.isSuccess).toBe(true));
-  expect(apiClient.get).toHaveBeenCalledWith("/api/v1/me/event-tickets/ticket%2F1/credential");
+  expect(apiClient.get).toHaveBeenCalledWith(
+    "/api/me/event-tickets/ticket%2F1/credential",
+  );
 });
 
 test("does not fetch credentials for an ineligible presentation", async () => {
-  const hook = renderHook(() => useTicketCredential("ticket/1", false), { wrapper });
+  const hook = renderHook(() => useTicketCredential("ticket/1", false), {
+    wrapper,
+  });
   await waitFor(() => expect(hook.result.current.fetchStatus).toBe("idle"));
   expect(apiClient.get).not.toHaveBeenCalled();
 });
