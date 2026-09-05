@@ -1,41 +1,64 @@
 import { useQuery } from "@tanstack/react-query";
 import apiClient from "@/config/api-client";
-import { apiPaths } from "@/constants/api";
 import { queryKeys } from "@/constants/query-keys";
-import type { components } from "@/generated/openapi";
+import type { paths } from "@/generated/openapi";
 
-type PublishedEventResponse =
-  components["schemas"]["PublishedEventListResponse"];
-export type MemberEvent = PublishedEventResponse["data"][number];
-export type MemberSubevent = MemberEvent["subevents"][number];
+type PublicEvent = {
+  id: string;
+  eventGroupId: string | null;
+  name: string;
+  publicDescription: string | null;
+  startsAt: string | null;
+  endsAt: string | null;
+  locationName: string | null;
+  locationAddress: string | null;
+  locationUrl: string | null;
+  coverImageUrl: string | null;
+  primaryColor: string | null;
+  secondaryColor: string | null;
+  status: "PUBLISHED" | "CLOSED" | "CANCELLED";
+  eventGroup: {
+    name: string;
+    coverImageUrl: string | null;
+    primaryColor: string | null;
+    secondaryColor: string | null;
+  } | null;
+};
 
-export function usePublishedEvents() {
+export type PublicEventGroup = {
+  id: string;
+  name: string;
+  publicDescription: string | null;
+  coverImageUrl: string | null;
+  primaryColor: string | null;
+  secondaryColor: string | null;
+  events: PublicEvent[];
+};
+
+type EventListResponse = { data: PublicEvent[] };
+type EventResponse = { data: PublicEvent };
+type EventGroupListResponse = { data: PublicEventGroup[] };
+
+const eventGroupsPath: keyof paths = "/api/event-groups";
+const eventsPath: keyof paths = "/api/events";
+
+export function usePublicEventGroups() {
   return useQuery({
-    queryKey: queryKeys.publishedEvents,
+    queryKey: queryKeys.publicEventGroups,
     queryFn: () =>
       apiClient
-        .get<PublishedEventResponse>(apiPaths.publishedEvents)
+        .get<EventGroupListResponse>(eventGroupsPath)
         .then(({ data }) => data.data),
   });
 }
 
-type PublicEventListResponse = components["schemas"]["PublicEventListV1"];
-type PublicEventDetailResponse = components["schemas"]["PublicEventDetailV1"];
-export type PublicEvent = PublicEventListResponse["data"][number];
-export type PublicSubEvent =
-  PublicEventDetailResponse["data"]["subEvents"][number] & {
-    destinationUrl?: string | null;
-  };
-
-export function usePublicEvents(page = 1) {
+export function usePublicEvents() {
   return useQuery({
-    queryKey: [...queryKeys.publicEvents, page],
+    queryKey: queryKeys.publicEvents,
     queryFn: () =>
       apiClient
-        .get<PublicEventListResponse>("/api/events", {
-          params: { page, limit: 50 },
-        })
-        .then(({ data }) => data),
+        .get<EventListResponse>(eventsPath)
+        .then(({ data }) => data.data),
   });
 }
 
@@ -44,9 +67,7 @@ export function usePublicEvent(eventId: string) {
     queryKey: queryKeys.publicEvent(eventId),
     queryFn: () =>
       apiClient
-        .get<PublicEventDetailResponse>(
-          `/api/events/${encodeURIComponent(eventId)}`,
-        )
+        .get<EventResponse>(`/api/events/${encodeURIComponent(eventId)}`)
         .then(({ data }) => data.data),
     enabled: Boolean(eventId),
   });

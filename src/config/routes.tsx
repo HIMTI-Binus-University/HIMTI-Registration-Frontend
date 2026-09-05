@@ -7,14 +7,6 @@ import DashboardPage from "@/pages/dashboard";
 import VerifyOutlookPage from "@/pages/verify-outlook";
 import EventDetailPage from "@/pages/event-detail";
 import EventsPage from "@/pages/events";
-import EventRegistrationPage from "@/pages/event-registration";
-import RegistrationsPage from "@/pages/registrations";
-import RegistrationDetailPage from "@/pages/registration-detail";
-import PostRegistrationFormPage from "@/pages/post-registration-form";
-import RegistrationInvitationPage from "@/pages/registration-invitation";
-import TicketsPage from "@/pages/tickets";
-import TicketDetailPage from "@/pages/ticket-detail";
-import TicketPresentPage from "@/pages/ticket-present";
 import { Navigate } from "react-router-dom";
 import type { AppRoute } from "@/types/common";
 import {
@@ -67,62 +59,6 @@ export const routes: AppRoute[] = [
   {
     path: "/events/:eventId",
     element: <EventDetailPage />,
-  },
-  {
-    path: "/events/:eventId/subevents/:subEventId/register",
-    element: <EventRegistrationPage />,
-  },
-  {
-    path: "/event-registration/invitations",
-    element: (
-      <RequireAuth>
-        <RegistrationInvitationPage />
-      </RequireAuth>
-    ),
-  },
-  {
-    path: "/tickets",
-    element: <RequireAuth><TicketsPage /></RequireAuth>,
-  },
-  {
-    path: "/tickets/:ticketId",
-    element: <RequireAuth><TicketDetailPage /></RequireAuth>,
-  },
-  {
-    path: "/tickets/:ticketId/present",
-    element: <RequireAuth><TicketPresentPage /></RequireAuth>,
-  },
-  {
-    path: "/registrations",
-    element: (
-      <RequireAuth>
-        <RegistrationsPage />
-      </RequireAuth>
-    ),
-  },
-  {
-    path: "/registrations/:registrationId/edit",
-    element: (
-      <RequireAuth>
-        <EventRegistrationPage />
-      </RequireAuth>
-    ),
-  },
-  {
-    path: "/registrations/:registrationId",
-    element: (
-      <RequireAuth>
-        <RegistrationDetailPage />
-      </RequireAuth>
-    ),
-  },
-  {
-    path: "/registrations/:registrationId/forms/:assignmentId",
-    element: (
-      <RequireAuth>
-        <PostRegistrationFormPage />
-      </RequireAuth>
-    ),
   },
   {
     path: "/dashboard",

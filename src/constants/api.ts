@@ -10,5 +10,4 @@ export const apiPaths = {
   membershipStatus: "/api/membership/status",
   membershipResources: "/api/membership/resources",
   reregisterCurrentUser: "/api/user/me/reregister",
-  publishedEvents: "/api/event/published",
 } as const;

@@ -54,16 +54,6 @@ export function AppHeader() {
           <Button asChild variant="outline" className="border-0 px-3">
             <Link to="/events">Events</Link>
           </Button>
-          {session.data && (
-            <Button asChild variant="outline" className="border-0 px-3">
-              <Link to="/tickets">My tickets</Link>
-            </Button>
-          )}
-          {session.data && (
-            <Button asChild variant="outline" className="border-0 px-3">
-              <Link to="/registrations">My registrations</Link>
-            </Button>
-          )}
           {!session.data && (
             <Button asChild className="ml-auto">
               <Link to="/login">Log in</Link>

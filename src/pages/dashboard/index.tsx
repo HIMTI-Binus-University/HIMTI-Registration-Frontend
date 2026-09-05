@@ -10,7 +10,7 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ResourceMarkdown } from "@/components/resource-markdown";
 import { gsap, motionEase, useGSAP } from "@/lib/motion";
-import { usePublishedEvents } from "@/api/events/queries";
+import { usePublicEvents } from "@/api/events/queries";
 import { useCurrentUser } from "@/api/users/queries";
 import {
   useMembershipResources,
@@ -22,7 +22,7 @@ import { AppHeader } from "@/components/layout/app-header";
 
 export default function DashboardPage() {
   const profileQuery = useCurrentUser();
-  const eventsQuery = usePublishedEvents();
+  const eventsQuery = usePublicEvents();
   const membershipStatus = useMembershipStatus();
   const resourcesQuery = useMembershipResources();
   const user = profileQuery.data;
@@ -151,9 +151,6 @@ export default function DashboardPage() {
             title="Events"
             copy="Explore published events and choose your next experience."
           />
-          <Button asChild variant="outline" className="mt-4">
-            <Link to="/registrations">My registrations</Link>
-          </Button>
           {eventsQuery.isPending && (
             <div
               role="status"
@@ -206,12 +203,7 @@ export default function DashboardPage() {
                           "Event details will be available soon."}
                       </p>
                       <span className="mt-auto flex items-center justify-between gap-3 pt-4 text-sm font-bold text-brand-blue">
-                        <span>
-                          {event.subevents.length}{" "}
-                          {event.subevents.length === 1
-                            ? "activity"
-                            : "activities"}
-                        </span>
+                        <span>View details</span>
                         <span className="inline-flex items-center gap-1">
                           View event
                           <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5 motion-reduce:transform-none" />

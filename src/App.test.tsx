@@ -19,8 +19,8 @@ import apiClient from "@/config/api-client";
 import { writeRegistrationDraft } from "@/pages/register/draft";
 import {
   usePublicEvent,
+  usePublicEventGroups,
   usePublicEvents,
-  usePublishedEvents,
 } from "@/api/events/queries";
 
 vi.mock("@/api/users/queries", () => ({
@@ -44,7 +44,7 @@ vi.mock("@/api/membership/queries", () => ({
 }));
 
 vi.mock("@/api/events/queries", () => ({
-  usePublishedEvents: vi.fn(),
+  usePublicEventGroups: vi.fn(),
   usePublicEvents: vi.fn(),
   usePublicEvent: vi.fn(),
 }));
@@ -101,6 +101,21 @@ const publishedEvent = {
   name: "HIMTI Tech Festival",
   publicDescription: "Build, learn, and connect with the community.",
   coverImageUrl: "https://example.com/event-cover.jpg",
+  eventGroupId: "group-1",
+  startsAt: "2026-08-23T08:00:00.000Z",
+  endsAt: "2026-08-24T08:00:00.000Z",
+  locationName: "BINUS Anggrek",
+  locationAddress: null,
+  locationUrl: "https://maps.example.com/showcase",
+  primaryColor: null,
+  secondaryColor: null,
+  status: "PUBLISHED",
+  eventGroup: {
+    name: "Tech Series",
+    coverImageUrl: null,
+    primaryColor: null,
+    secondaryColor: null,
+  },
   subevents: [
     {
       id: "subevent-2",
@@ -136,7 +151,7 @@ const publishedEvent = {
 };
 
 function mockEvents(overrides = {}) {
-  vi.mocked(usePublishedEvents).mockReturnValue({
+  vi.mocked(usePublicEvents).mockReturnValue({
     data: [],
     isPending: false,
     isError: false,
@@ -173,12 +188,8 @@ beforeEach(() => {
   vi.mocked(signOut).mockReset().mockResolvedValue(undefined);
   mockProfile();
   mockEvents();
-  vi.mocked(usePublicEvents).mockReturnValue({
-    data: {
-      data: [],
-      meta: { page: 1, limit: 50, totalPages: 0, totalRecords: 0 },
-      msg: "success",
-    },
+  vi.mocked(usePublicEventGroups).mockReturnValue({
+    data: [],
     isPending: false,
     isError: false,
     isSuccess: true,
@@ -361,14 +372,14 @@ test("renders compact event cards that open internal detail pages", () => {
   expect(
     screen.getByRole("heading", { name: publishedEvent.name }),
   ).toBeInTheDocument();
-  expect(screen.getByText("2 activities")).toBeInTheDocument();
+  expect(screen.getByText("View details")).toBeInTheDocument();
   expect(
     screen.getByRole("link", { name: /himti tech festival/i }),
   ).toHaveAttribute("href", "/events/event-1");
   expect(screen.queryByText("Future Web Workshop")).toBeNull();
 });
 
-test("renders ordered sub-events with clear registration and location states", async () => {
+test("renders event details with registration intentionally unavailable", () => {
   mockProfile({
     registrationCompleted: true,
     registrationCompletedAt: "2026-07-21T00:00:00.000Z",
@@ -377,12 +388,6 @@ test("renders ordered sub-events with clear registration and location states", a
     data: {
       ...publishedEvent,
       status: "PUBLISHED",
-      subEvents: publishedEvent.subevents.map((item) => ({
-        ...item,
-        registrationMode: "INTERNAL",
-        visibility: "PUBLIC",
-        isRegistrationOpen: item.status === "OPEN",
-      })),
     },
     isPending: false,
     isError: false,
@@ -399,28 +404,21 @@ test("renders ordered sub-events with clear registration and location states", a
   expect(
     screen.getByRole("heading", { name: publishedEvent.name }),
   ).toBeInTheDocument();
-  const activityHeadings = screen.getAllByRole("heading", { level: 3 });
-  expect(activityHeadings.map((heading) => heading.textContent)).toEqual([
-    "Future Web Workshop",
-    "Closing Showcase",
-  ]);
-  const destination = screen.getByRole("link", {
-    name: /continue to registration/i,
-  });
-  expect(destination).toHaveAttribute(
-    "href",
-    "/events/event-1/subevents/subevent-1/register",
-  );
   expect(
-    screen.getByRole("link", { name: /binus alam sutera/i }),
-  ).toHaveAttribute("href", "https://maps.example.com/showcase");
+    screen.getByRole("heading", { name: /registration coming soon/i }),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByRole("button", { name: /registration not yet available/i }),
+  ).toBeDisabled();
+  expect(screen.getByRole("link", { name: /binus anggrek/i })).toHaveAttribute(
+    "href",
+    "https://maps.example.com/showcase",
+  );
   expect(screen.getByRole("link", { name: /all events/i })).toHaveAttribute(
     "href",
     "/events",
   );
   expect(screen.queryByText(/published event/i)).not.toBeInTheDocument();
-
-  expect(screen.queryByText(/^program$/i)).not.toBeInTheDocument();
 });
 
 test("supports event loading, retryable error, and not-found states", async () => {
