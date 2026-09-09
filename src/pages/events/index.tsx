@@ -69,8 +69,9 @@ export default function EventsPage() {
             </h2>
             <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {groups.data.map((group) => (
-                <article
+                <Link
                   key={group.id}
+                  to={`/event-groups/${encodeURIComponent(group.id)}`}
                   className="overflow-hidden rounded-2xl border border-brand-blue/10 bg-white shadow-sm"
                 >
                   <EventImage
@@ -90,7 +91,7 @@ export default function EventsPage() {
                       {group.events.length} events
                     </p>
                   </div>
-                </article>
+                </Link>
               ))}
             </div>
           </section>

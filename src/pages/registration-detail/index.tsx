@@ -45,6 +45,19 @@ type RegistrationSections = NonNullable<
   NonNullable<Registration["members"][number]["submissions"]>[number]["form"]
 >["sections"];
 
+const statusCopy: Record<string, string> = {
+  ASSEMBLING:
+    "Your registration is assembling. Complete your answers and, for Bundles, wait for every seat to be filled and ready.",
+  PENDING_PAYMENT:
+    "Payment acknowledgement is required. Upload the requested proof before the deadline.",
+  PAYMENT_REVIEW: "Your payment is under organizer review.",
+  CONFIRMED:
+    "Your registration is confirmed. Your active ticket is ready below.",
+  REJECTED: "Payment was rejected and this registration is no longer active.",
+  EXPIRED: "The registration or payment deadline expired.",
+  CANCELLED: "This registration was cancelled.",
+};
+
 const memberData = (member: unknown): MemberData => {
   return typeof member === "object" && member !== null
     ? (member as MemberData)
@@ -154,6 +167,25 @@ function RegistrationDetail({
             <Info label="Total" value={formatIdr(registration.totalMinor)} />
           </div>
         </section>
+        <p className="rounded-2xl border border-brand-blue/10 bg-white p-5 text-sm leading-6 text-brand-slate">
+          {statusCopy[registration.status]}
+        </p>
+
+        {registration.status === "CONFIRMED" &&
+          ownMember.ticket?.status === "ACTIVE" && (
+            <section className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-6">
+              <h2 className="text-xl font-bold text-brand-navy">
+                Your ticket is ready
+              </h2>
+              <p className="mt-2 text-sm text-brand-slate">
+                Keep the QR and fallback code available for Event entry. Ticket
+                issuance does not depend on attendance tracking.
+              </p>
+              <Button asChild className="mt-4">
+                <Link to={`/tickets/${ownMember.ticket.id}`}>Open ticket</Link>
+              </Button>
+            </section>
+          )}
 
         {Boolean(registration.payment) && (
           <PaymentSection

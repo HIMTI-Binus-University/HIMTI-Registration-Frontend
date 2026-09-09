@@ -9,6 +9,9 @@ import EventDetailPage from "@/pages/event-detail";
 import EventsPage from "@/pages/events";
 import EventRegistrationPage from "@/pages/event-registration";
 import RegistrationDetailPage from "@/pages/registration-detail";
+import EventGroupPage from "@/pages/event-group";
+import TicketsPage from "@/pages/tickets";
+import TicketDetailPage from "@/pages/ticket-detail";
 import { Navigate } from "react-router-dom";
 import type { AppRoute } from "@/types/common";
 import {
@@ -23,12 +26,32 @@ export const routes: AppRoute[] = [
   { path: "/login", element: <LoginPage /> },
   { path: "/auth/callback", element: <AuthCallbackPage /> },
   {
+    path: "/event-groups/:eventGroupId",
+    element: <EventGroupPage />,
+  },
+  {
     path: "/register",
     element: (
       <RequireAuth>
         <RequireIncompleteRegistration>
           <RegisterPage />
         </RequireIncompleteRegistration>
+      </RequireAuth>
+    ),
+  },
+  {
+    path: "/tickets",
+    element: (
+      <RequireAuth>
+        <TicketsPage />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: "/tickets/:ticketId",
+    element: (
+      <RequireAuth>
+        <TicketDetailPage />
       </RequireAuth>
     ),
   },

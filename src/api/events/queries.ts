@@ -38,6 +38,7 @@ export type PublicEventGroup = {
 type EventListResponse = { data: PublicEvent[] };
 type EventResponse = { data: PublicEvent };
 type EventGroupListResponse = { data: PublicEventGroup[] };
+type EventGroupResponse = { data: PublicEventGroup };
 
 const eventGroupsPath: keyof paths = "/api/event-groups";
 const eventsPath: keyof paths = "/api/events";
@@ -49,6 +50,19 @@ export function usePublicEventGroups() {
       apiClient
         .get<EventGroupListResponse>(eventGroupsPath)
         .then(({ data }) => data.data),
+  });
+}
+
+export function usePublicEventGroup(eventGroupId: string) {
+  return useQuery({
+    queryKey: queryKeys.publicEventGroup(eventGroupId),
+    queryFn: () =>
+      apiClient
+        .get<EventGroupResponse>(
+          `/api/event-groups/${encodeURIComponent(eventGroupId)}`,
+        )
+        .then(({ data }) => data.data),
+    enabled: Boolean(eventGroupId),
   });
 }
 
