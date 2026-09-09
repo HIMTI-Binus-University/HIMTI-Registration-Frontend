@@ -379,7 +379,7 @@ test("renders compact event cards that open internal detail pages", () => {
   expect(screen.queryByText("Future Web Workshop")).toBeNull();
 });
 
-test("renders event details with registration intentionally unavailable", () => {
+test("renders event details with registration unavailable when context is unavailable", () => {
   mockProfile({
     registrationCompleted: true,
     registrationCompletedAt: "2026-07-21T00:00:00.000Z",
@@ -405,10 +405,10 @@ test("renders event details with registration intentionally unavailable", () => 
     screen.getByRole("heading", { name: publishedEvent.name }),
   ).toBeInTheDocument();
   expect(
-    screen.getByRole("heading", { name: /registration coming soon/i }),
+    screen.getByRole("heading", { name: /event registration/i }),
   ).toBeInTheDocument();
   expect(
-    screen.getByRole("button", { name: /registration not yet available/i }),
+    screen.getByRole("button", { name: /registration unavailable/i }),
   ).toBeDisabled();
   expect(screen.getByRole("link", { name: /binus anggrek/i })).toHaveAttribute(
     "href",
@@ -820,11 +820,18 @@ test("logs out from the dashboard", async () => {
   await waitFor(() => expect(signOut).toHaveBeenCalledOnce());
 });
 
-test("profile editing excludes registration and academic fields", () => {
+test("incomplete users can edit event registration institution fields", () => {
   mockProfile({
-    registrationCompleted: true,
-    registrationCompletedAt: "2026-07-21T00:00:00.000Z",
+    institutionType: "BINUS",
   });
+  vi.mocked(useUserRegistrationOptions).mockReturnValue({
+    data: {
+      universities: [{ id: "binus-id", name: "BINUS University" }],
+      studyPrograms: [{ id: "cs-id", name: "Computer Science" }],
+      binusRegions: [{ id: "alam-sutera-id", name: "Alam Sutera" }],
+    },
+    isPending: false,
+  } as never);
   renderApp(
     <MemoryRouter initialEntries={["/profile/edit"]}>
       <App />
@@ -832,12 +839,16 @@ test("profile editing excludes registration and academic fields", () => {
   );
 
   expect(
-    screen.getByRole("heading", { name: /edit contact information/i }),
+    screen.getByRole("heading", { name: /edit registration profile/i }),
   ).toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: "Student" })).toBeNull();
-  expect(
-    screen.queryByLabelText(/university|study program|region|nim/i),
-  ).toBeNull();
+  expect(screen.getByRole("button", { name: "BINUS" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  expect(screen.getByLabelText("University")).toBeInTheDocument();
+  expect(screen.getByLabelText("Study program")).toBeInTheDocument();
+  expect(screen.getByLabelText("Region")).toBeInTheDocument();
+  expect(screen.getByLabelText("NIM")).toBeInTheDocument();
   expect(screen.getByLabelText(/google email/i)).toBeDisabled();
 });
 

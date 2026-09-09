@@ -1,6 +1,11 @@
 import { ArrowLeft, CalendarDays, ExternalLink, MapPin } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import { usePublicEvent } from "@/api/events/queries";
+import {
+  useEventRegistrationContext,
+  useMyEventRegistrations,
+} from "@/api/event-registrations/queries";
+import { useCurrentUser } from "@/api/users/queries";
 import { EventImage } from "@/components/event-image";
 import { AppHeader } from "@/components/layout/app-header";
 import { ResourceMarkdown } from "@/components/resource-markdown";
@@ -18,6 +23,13 @@ const date = (value: string | null) =>
 export default function EventDetailPage() {
   const { eventId = "" } = useParams();
   const query = usePublicEvent(eventId);
+  const account = useCurrentUser();
+  const registrationContext = useEventRegistrationContext(eventId);
+  const registrations = useMyEventRegistrations(Boolean(account.data));
+  const existingRegistration = registrations.data?.find(
+    (registration) =>
+      registration.eventId === eventId && registration.status !== "CANCELLED",
+  );
   const location = getSafeHttpUrl(query.data?.locationUrl);
   return (
     <main className="min-h-screen bg-background px-4 py-5 sm:px-6 sm:py-8">
@@ -101,15 +113,34 @@ export default function EventDetailPage() {
             </section>
             <section className="my-8 rounded-2xl border border-brand-blue/10 bg-white p-6 sm:p-8">
               <h2 className="text-xl font-bold text-brand-navy">
-                Registration coming soon
+                Event registration
               </h2>
               <p className="mt-2 text-brand-slate">
-                Registration actions are not available during this platform
-                update. Event discovery remains open.
+                {existingRegistration
+                  ? "Continue to your individual registration."
+                  : registrationContext.data?.event.registrationOpen &&
+                      registrationContext.data.form &&
+                      registrationContext.data.packages.length
+                    ? "Choose an available one-seat package to register."
+                    : "Individual registration is currently unavailable."}
               </p>
-              <Button disabled className="mt-5">
-                Registration not yet available
-              </Button>
+              {existingRegistration ? (
+                <Button asChild className="mt-5">
+                  <Link to={`/registrations/${existingRegistration.id}`}>
+                    View registration
+                  </Link>
+                </Button>
+              ) : registrationContext.data?.event.registrationOpen &&
+                registrationContext.data.form &&
+                registrationContext.data.packages.length ? (
+                <Button asChild className="mt-5">
+                  <Link to={`/events/${eventId}/register`}>Register</Link>
+                </Button>
+              ) : (
+                <Button disabled className="mt-5">
+                  Registration unavailable
+                </Button>
+              )}
             </section>
           </>
         )}

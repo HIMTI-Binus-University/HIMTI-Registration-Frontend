@@ -7,6 +7,8 @@ import DashboardPage from "@/pages/dashboard";
 import VerifyOutlookPage from "@/pages/verify-outlook";
 import EventDetailPage from "@/pages/event-detail";
 import EventsPage from "@/pages/events";
+import EventRegistrationPage from "@/pages/event-registration";
+import RegistrationDetailPage from "@/pages/registration-detail";
 import { Navigate } from "react-router-dom";
 import type { AppRoute } from "@/types/common";
 import {
@@ -46,9 +48,7 @@ export const routes: AppRoute[] = [
     path: "/profile/edit",
     element: (
       <RequireAuth>
-        <RequireCompletedRegistration>
-          <ProfileEditPage />
-        </RequireCompletedRegistration>
+        <ProfileEditPage />
       </RequireAuth>
     ),
   },
@@ -59,6 +59,22 @@ export const routes: AppRoute[] = [
   {
     path: "/events/:eventId",
     element: <EventDetailPage />,
+  },
+  {
+    path: "/events/:eventId/register",
+    element: (
+      <RequireAuth>
+        <EventRegistrationPage />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: "/registrations/:registrationId",
+    element: (
+      <RequireAuth>
+        <RegistrationDetailPage />
+      </RequireAuth>
+    ),
   },
   {
     path: "/dashboard",

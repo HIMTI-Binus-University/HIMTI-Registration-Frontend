@@ -7,5 +7,10 @@ export const queryKeys = {
   publicEventGroups: ["event-groups", "public"] as const,
   publicEvents: ["events", "public"] as const,
   publicEvent: (eventId: string) => ["events", "public", eventId] as const,
+  eventRegistrationContext: (eventId: string) =>
+    ["event-registrations", "context", eventId] as const,
+  myEventRegistrations: ["event-registrations", "me"] as const,
+  myEventRegistration: (registrationId: string) =>
+    ["event-registrations", "me", registrationId] as const,
   session: ["session"] as const,
 } as const;
