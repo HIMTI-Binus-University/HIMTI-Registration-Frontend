@@ -5,13 +5,10 @@ import { useCurrentUser } from "@/api/users/queries";
 import { useMembershipStatus } from "@/api/membership/queries";
 import { Button } from "@/components/ui/button";
 import { currentReturnPath, storeReturnPath } from "@/utils/return-path";
+import { AppLoading } from "@/components/app-motion";
 
 export function AccountLoading() {
-  return (
-    <div className="grid min-h-screen place-items-center text-sm text-brand-slate">
-      Checking your account...
-    </div>
-  );
+  return <AppLoading label="Checking your account..." />;
 }
 
 export function AccountLoadError({ retry }: { retry: () => void }) {

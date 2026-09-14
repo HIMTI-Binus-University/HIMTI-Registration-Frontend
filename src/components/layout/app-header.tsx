@@ -34,7 +34,8 @@ export function AppHeader() {
           className="flex items-center gap-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
         >
           <img
-            src="/icon-primary.svg"
+            data-himti-brand-target
+            src="/logo-himti.png"
             alt=""
             className="size-10 shrink-0 object-contain"
           />

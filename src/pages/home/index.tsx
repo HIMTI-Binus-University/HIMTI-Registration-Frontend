@@ -39,7 +39,8 @@ function Brand() {
       className="flex min-w-0 items-center gap-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 sm:gap-3"
     >
       <img
-        src="/icon-primary.svg"
+        data-himti-brand-target
+        src="/logo-himti.png"
         alt=""
         className="size-8 shrink-0 object-contain sm:size-10"
       />
