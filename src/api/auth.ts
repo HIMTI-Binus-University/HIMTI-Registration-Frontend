@@ -26,17 +26,17 @@ export function useSession() {
   });
 }
 
-export async function signInWithGoogle() {
+export async function signInWithGoogle(returnTo?: string) {
   const { data } = await apiClient.post<{ url?: string }>(
-    "/auth/sign-in/social",
+    "/api/auth/sign-in/social",
     {
       provider: "google",
-      callbackURL: `${runtime.appUrl}/auth/callback`,
+      callbackURL: `${runtime.appUrl}/auth/callback${returnTo ? `?returnTo=${encodeURIComponent(returnTo)}` : ""}`,
     },
   );
   if (data.url) window.location.assign(data.url);
 }
 
 export async function signOut() {
-  await apiClient.post("/auth/sign-out");
+  await apiClient.post("/api/auth/sign-out");
 }
