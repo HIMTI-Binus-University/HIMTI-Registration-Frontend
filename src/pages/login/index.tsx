@@ -1,3 +1,6 @@
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import apiClient from "@/config/api-client";
 import { ArrowLeft } from "lucide-react";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { AuthLayout } from "@/components/layout/auth-layout";
@@ -29,6 +32,29 @@ function GoogleMark() {
 }
 
 export default function LoginPage() {
+  const navigate = useNavigate();
+  const [devLoginEnabled, setDevLoginEnabled] = useState(false);
+  const [devLoading, setDevLoading] = useState(false);
+  const [devError, setDevError] = useState(false);
+  useEffect(() => {
+    let active = true;
+    void apiClient.get<{ enabled: boolean }>("/api/auth/dev-login")
+      .then(({ data }) => { if (active) setDevLoginEnabled(data.enabled === true); })
+      .catch(() => { if (active) setDevLoginEnabled(false); });
+    return () => { active = false; };
+  }, []);
+
+  const devLogin = async () => {
+    setDevLoading(true);
+    setDevError(false);
+    try {
+      await apiClient.post("/api/auth/dev-login", {}, { withCredentials: true });
+      navigate("/auth/callback", { replace: true });
+    } catch {
+      setDevError(true);
+      setDevLoading(false);
+    }
+  };
   const [params] = useSearchParams();
   const location = useLocation();
   const stateFrom = (location.state as { from?: unknown } | null)?.from;
@@ -53,6 +79,12 @@ export default function LoginPage() {
         >
           <GoogleMark /> Continue with Google
         </Button>
+        {devLoginEnabled && (
+          <Button type="button" className="mt-3 h-12 w-full" disabled={devLoading} onClick={() => void devLogin()}>
+            {devLoading ? "Signing in..." : "Development System login"}
+          </Button>
+        )}
+        {devError && <p role="alert" className="mt-3 text-sm text-red-700">Development sign-in failed. Please try again.</p>}
         <p className="mt-5 text-center text-xs leading-5 text-brand-slate">
           By continuing, you agree to provide the information required for HIMTI
           membership.
