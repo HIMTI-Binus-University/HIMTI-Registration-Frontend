@@ -6,6 +6,7 @@ import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { AuthLayout } from "@/components/layout/auth-layout";
 import { Button } from "@/components/ui/button";
 import { signInWithGoogle } from "@/api/auth";
+import { parseApiError } from "@/api/api-error";
 import { sanitizeReturnPath, storeReturnPath } from "@/utils/return-path";
 
 function GoogleMark() {
@@ -36,19 +37,32 @@ export default function LoginPage() {
   const [devLoginEnabled, setDevLoginEnabled] = useState(false);
   const [devLoading, setDevLoading] = useState(false);
   const [devError, setDevError] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [googleError, setGoogleError] = useState("");
   useEffect(() => {
     let active = true;
-    void apiClient.get<{ enabled: boolean }>("/api/auth/dev-login")
-      .then(({ data }) => { if (active) setDevLoginEnabled(data.enabled === true); })
-      .catch(() => { if (active) setDevLoginEnabled(false); });
-    return () => { active = false; };
+    void apiClient
+      .get<{ enabled: boolean }>("/api/auth/dev-login")
+      .then(({ data }) => {
+        if (active) setDevLoginEnabled(data.enabled === true);
+      })
+      .catch(() => {
+        if (active) setDevLoginEnabled(false);
+      });
+    return () => {
+      active = false;
+    };
   }, []);
 
   const devLogin = async () => {
     setDevLoading(true);
     setDevError(false);
     try {
-      await apiClient.post("/api/auth/dev-login", {}, { withCredentials: true });
+      await apiClient.post(
+        "/api/auth/dev-login",
+        {},
+        { withCredentials: true },
+      );
       navigate("/auth/callback", { replace: true });
     } catch {
       setDevError(true);
@@ -61,6 +75,26 @@ export default function LoginPage() {
   const returnTo = storeReturnPath(
     sanitizeReturnPath(params.get("returnTo") ?? stateFrom, "/dashboard"),
   );
+  const googleLogin = async () => {
+    setGoogleLoading(true);
+    setGoogleError("");
+    try {
+      await signInWithGoogle(returnTo);
+    } catch (error) {
+      const parsed = parseApiError(error);
+      const message =
+        error instanceof Error &&
+        !("response" in error) &&
+        error.message !== "Network Error"
+          ? error.message
+          : parsed.code ||
+              parsed.message !== "Something went wrong. Please try again."
+            ? parsed.message
+            : "Could not connect to Google sign-in. Please try again.";
+      setGoogleError(message);
+      setGoogleLoading(false);
+    }
+  };
   return (
     <AuthLayout>
       <section className="p-5 text-center sm:p-8">
@@ -75,16 +109,35 @@ export default function LoginPage() {
           type="button"
           variant="outline"
           className="mt-8 h-12 w-full gap-3 border-brand-blue/20 bg-white text-brand-ink hover:bg-brand-pale"
-          onClick={() => void signInWithGoogle(returnTo)}
+          disabled={googleLoading}
+          onClick={() => void googleLogin()}
         >
-          <GoogleMark /> Continue with Google
+          <GoogleMark />{" "}
+          {googleLoading ? "Signing in..." : "Continue with Google"}
         </Button>
+        {googleError && (
+          <p
+            role="alert"
+            className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700"
+          >
+            {googleError}
+          </p>
+        )}
         {devLoginEnabled && (
-          <Button type="button" className="mt-3 h-12 w-full" disabled={devLoading} onClick={() => void devLogin()}>
+          <Button
+            type="button"
+            className="mt-3 h-12 w-full"
+            disabled={devLoading}
+            onClick={() => void devLogin()}
+          >
             {devLoading ? "Signing in..." : "Development System login"}
           </Button>
         )}
-        {devError && <p role="alert" className="mt-3 text-sm text-red-700">Development sign-in failed. Please try again.</p>}
+        {devError && (
+          <p role="alert" className="mt-3 text-sm text-red-700">
+            Development sign-in failed. Please try again.
+          </p>
+        )}
         <p className="mt-5 text-center text-xs leading-5 text-brand-slate">
           By continuing, you agree to provide the information required for HIMTI
           membership.

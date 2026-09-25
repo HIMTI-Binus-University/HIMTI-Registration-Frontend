@@ -4,6 +4,7 @@ import {
   type RegistrationData,
 } from "@/pages/register/payload";
 import type { UserRegistrationOptions } from "@/api/users/queries";
+import { validateRegistrationStep } from "./validation";
 
 const options: UserRegistrationOptions = {
   universities: [{ id: "binus-id", name: "BINUS University" }],
@@ -125,5 +126,108 @@ describe("registration payloads", () => {
         options,
       ),
     ).toEqual(expected);
+  });
+});
+
+describe("registration validation", () => {
+  const context = {
+    options,
+    membershipPeriodAvailable: true,
+    reregister: false,
+    emailVerified: true,
+  };
+  test("rejects whitespace and invalid phone on the personal step", () => {
+    const invalid = validateRegistrationStep(
+      { ...base, name: "   ", phone: "abc" },
+      1,
+      context,
+    );
+    expect(invalid.fields.name).toBeTruthy();
+    expect(invalid.fields.phone).toBeTruthy();
+    expect(
+      validateRegistrationStep(
+        { ...base, phone: "+62 (812) 345-678" },
+        1,
+        context,
+      ).fields.phone,
+    ).toBeUndefined();
+  });
+  test("requires verified BINUS address and current option IDs", () => {
+    const invalid = validateRegistrationStep(
+      {
+        ...base,
+        binusEmail: "member@binus.ac.id.attacker.test",
+        region: "missing",
+        major: "missing",
+      },
+      2,
+      context,
+    );
+    expect(invalid.fields).toMatchObject({
+      region: expect.any(String),
+      major: expect.any(String),
+      binusEmail: expect.any(String),
+    });
+    expect(
+      validateRegistrationStep(base, 2, { ...context, emailVerified: false })
+        .fields.binusEmail,
+    ).toMatch(/Verify/);
+    expect(validateRegistrationStep(base, 2, context).fields).toEqual({});
+  });
+  test("validates non-BINUS lecturer and other path fields", () => {
+    expect(
+      validateRegistrationStep(
+        {
+          ...base,
+          userType: "Lecturer",
+          institutionType: "Non-BINUS",
+          department: " ",
+        },
+        2,
+        context,
+      ).fields.department,
+    ).toBeTruthy();
+    expect(
+      validateRegistrationStep(
+        {
+          ...base,
+          userType: "Other",
+          institutionType: "Non-BINUS",
+          affiliation: " ",
+        },
+        2,
+        context,
+      ).fields.affiliation,
+    ).toBeTruthy();
+    expect(
+      validateRegistrationStep(
+        {
+          ...base,
+          userType: "Student",
+          institutionType: "Non-BINUS",
+          major: " ",
+        },
+        2,
+        context,
+      ).fields.major,
+    ).toBeTruthy();
+  });
+  test("rejects overlong values, missing period and unresolved BINUS university", () => {
+    expect(
+      validateRegistrationStep({ ...base, nim: "x".repeat(51) }, 2, context)
+        .fields.nim,
+    ).toBeTruthy();
+    expect(
+      validateRegistrationStep(base, 0, {
+        ...context,
+        membershipPeriodAvailable: false,
+      }).form,
+    ).toMatch(/period/);
+    expect(
+      validateRegistrationStep(base, 2, {
+        ...context,
+        options: { ...options, universities: [] },
+      }).form,
+    ).toMatch(/unavailable/);
   });
 });

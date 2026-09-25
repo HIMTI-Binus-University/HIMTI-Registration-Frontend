@@ -19,6 +19,7 @@ export function parseApiError(error: unknown): CanonicalApiError {
     };
   const details = body.details;
   const detailFields = isRecord(details) ? details.fieldErrors : undefined;
+  const issues = isRecord(details) ? details.issues : undefined;
   const arrayFields = Array.isArray(detailFields)
     ? detailFields.reduce<Record<string, string>>((result, item) => {
         if (
@@ -35,9 +36,20 @@ export function parseApiError(error: unknown): CanonicalApiError {
     arrayFields ??
     (isRecord(detailFields)
       ? detailFields
-      : isRecord(body.errors)
-        ? body.errors
-        : {});
+      : Array.isArray(issues)
+        ? Object.fromEntries(
+            issues.flatMap((issue) =>
+              isRecord(issue) &&
+              Array.isArray(issue.path) &&
+              typeof issue.path[0] === "string" &&
+              typeof issue.message === "string"
+                ? [[issue.path[0], issue.message]]
+                : [],
+            ),
+          )
+        : isRecord(body.errors)
+          ? body.errors
+          : {});
   const fieldErrors = Object.fromEntries(
     Object.entries(source).flatMap(([key, value]) => {
       const message = Array.isArray(value) ? value[0] : value;

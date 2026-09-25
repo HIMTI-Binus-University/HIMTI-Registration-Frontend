@@ -34,7 +34,9 @@ export async function signInWithGoogle(returnTo?: string) {
       callbackURL: `${runtime.appUrl}/auth/callback${returnTo ? `?returnTo=${encodeURIComponent(returnTo)}` : ""}`,
     },
   );
-  if (data.url) window.location.assign(data.url);
+  if (!data.url)
+    throw new Error("Google sign-in did not return a redirect URL.");
+  window.location.assign(data.url);
 }
 
 export async function signOut() {
