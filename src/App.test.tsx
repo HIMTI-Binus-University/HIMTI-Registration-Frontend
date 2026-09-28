@@ -14,7 +14,7 @@ import {
   useMembershipStatus,
   useReregisterCurrentUser,
 } from "@/api/membership/queries";
-import { signOut, useSession } from "@/api/auth";
+import { signInWithGoogle, signOut, useSession } from "@/api/auth";
 import apiClient from "@/config/api-client";
 import { writeRegistrationDraft } from "@/pages/register/draft";
 import {
@@ -185,6 +185,7 @@ afterEach(cleanup);
 beforeEach(() => {
   window.localStorage.clear();
   vi.mocked(apiClient.get).mockReset();
+  vi.mocked(apiClient.get).mockResolvedValue({ data: { enabled: false } });
   vi.mocked(signOut).mockReset().mockResolvedValue(undefined);
   mockProfile();
   mockEvents();
@@ -203,7 +204,11 @@ beforeEach(() => {
     refetch: vi.fn(),
   } as never);
   vi.mocked(useUserRegistrationOptions).mockReturnValue({
-    data: undefined,
+    data: {
+      universities: [{ id: "binus-id", name: "BINUS University" }],
+      binusRegions: [{ id: "region-id", name: "Alam Sutera" }],
+      studyPrograms: [{ id: "program-id", name: "Computer Science" }],
+    },
   } as never);
   vi.mocked(useMembershipStatus).mockReturnValue({
     data: {
@@ -924,6 +929,26 @@ test("sends unauthenticated users to Google login", () => {
   expect(screen.getByText("Continue with Google")).toBeInTheDocument();
 });
 
+test("shows Google sign-in failure and enables retry", async () => {
+  vi.mocked(signInWithGoogle).mockRejectedValueOnce({
+    message: "Google authentication unavailable",
+  });
+  renderApp(
+    <MemoryRouter initialEntries={["/login"]}>
+      <App />
+    </MemoryRouter>,
+  );
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Continue with Google" }),
+  );
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "Google authentication unavailable",
+  );
+  expect(
+    screen.getByRole("button", { name: "Continue with Google" }),
+  ).toBeEnabled();
+});
+
 test("shows a retryable account error instead of logging in on server failure", () => {
   vi.mocked(useCurrentUser).mockReturnValue({
     isPending: false,
@@ -1084,6 +1109,53 @@ test("restores a registration draft and reports an unverified BINUS email", asyn
     await screen.findByText(/has not been verified yet/i),
   ).toBeInTheDocument();
   expect(refetch).toHaveBeenCalledTimes(1);
+});
+
+test("returns a restored review draft to its first invalid step", async () => {
+  writeRegistrationDraft(
+    { userId: profile.id, mode: "register", membershipPeriodId: "period-1" },
+    {
+      step: 3,
+      data: {
+        userType: "Student",
+        institutionType: "Non-BINUS",
+        membershipPosition: "Member",
+        name: "Draft Member",
+        phone: "  ",
+        personalEmail: profile.email,
+        lineId: "",
+        nim: "2600000000",
+        batch: "",
+        binusEmail: "",
+        region: "",
+        major: "Computer Science",
+        university: "Example University",
+        institution: "",
+        department: "",
+        affiliation: "",
+      },
+      verificationSentFor: null,
+    },
+  );
+  renderApp(
+    <MemoryRouter initialEntries={["/register"]}>
+      <App />
+    </MemoryRouter>,
+  );
+  expect(
+    await screen.findByRole("heading", { name: "Personal information" }),
+  ).toBeInTheDocument();
+  await userEvent.click(screen.getByRole("button", { name: /continue/i }));
+  expect(screen.getByLabelText(/phone number/i)).toHaveAttribute(
+    "aria-invalid",
+    "true",
+  );
+  expect(document.getElementById("phone-error")).toHaveTextContent(
+    "Phone number is required",
+  );
+  expect(
+    screen.queryByRole("button", { name: /submit registration/i }),
+  ).not.toBeInTheDocument();
 });
 
 test("shows BINUS verification and clears institution details when the path changes", async () => {

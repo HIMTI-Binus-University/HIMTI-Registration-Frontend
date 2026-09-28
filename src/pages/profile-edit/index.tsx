@@ -162,6 +162,8 @@ function ProfileEditForm({
               value={data.phoneNumber}
               onChange={(value) => update("phoneNumber", value)}
               type="tel"
+              inputMode="numeric"
+              pattern="[0-9]+"
               required
             />
             <Field
@@ -407,6 +409,8 @@ function Field({
   value,
   onChange,
   type = "text",
+  inputMode,
+  pattern,
   required = false,
   disabled = false,
 }: {
@@ -414,6 +418,8 @@ function Field({
   value: string;
   onChange?: (value: string) => void;
   type?: string;
+  inputMode?: "numeric";
+  pattern?: string;
   required?: boolean;
   disabled?: boolean;
 }) {
@@ -423,6 +429,8 @@ function Field({
       <input
         aria-label={label}
         type={type}
+        inputMode={inputMode}
+        pattern={pattern}
         value={value}
         required={required}
         disabled={disabled}

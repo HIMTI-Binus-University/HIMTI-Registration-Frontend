@@ -6,9 +6,11 @@ vi.mock("@/config/api-client", () => ({ default: { post: vi.fn() } }));
 
 beforeEach(() => vi.mocked(apiClient.post).mockReset());
 
-test("uses the Better Auth API-prefixed social sign-in path", async () => {
+test("rejects social sign-in responses without a redirect URL", async () => {
   vi.mocked(apiClient.post).mockResolvedValue({ data: {} });
-  await signInWithGoogle("/events?open=1#activity");
+  await expect(signInWithGoogle("/events?open=1#activity")).rejects.toThrow(
+    "Google sign-in did not return a redirect URL",
+  );
   expect(apiClient.post).toHaveBeenCalledWith(
     "/api/auth/sign-in/social",
     expect.objectContaining({
