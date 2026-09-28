@@ -57,7 +57,7 @@ export function buildRegistrationPayload(
         ...binus,
         studyProgramId: data.major,
         nim: data.nim,
-        graduateBatch: data.batch,
+        graduateBatch: data.nim.slice(0, 2),
       };
     if (data.userType === "Lecturer")
       return { ...binus, department: data.department };

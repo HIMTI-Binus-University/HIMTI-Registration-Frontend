@@ -103,6 +103,8 @@ function Field({
   onChange,
   required = true,
   type = "text",
+  inputMode,
+  pattern,
   placeholder,
   readOnly = false,
   error,
@@ -113,6 +115,8 @@ function Field({
   onChange: (name: keyof RegistrationData, value: string) => void;
   required?: boolean;
   type?: string;
+  inputMode?: "numeric";
+  pattern?: string;
   placeholder?: string;
   readOnly?: boolean;
   error?: string;
@@ -131,6 +135,8 @@ function Field({
         name={name}
         type={type}
         value={value}
+        inputMode={inputMode}
+        pattern={pattern}
         required={required}
         readOnly={readOnly}
         placeholder={placeholder}
@@ -330,7 +336,7 @@ export default function RegisterPage({
         phone: user.phoneNumber ?? "",
         lineId: user.lineId ?? "",
         nim: user.nim ?? "",
-        batch: user.graduateBatch ?? "",
+        batch: (user.nim ?? "").slice(0, 2),
         binusEmail: user.outlookEmail ?? "",
         region:
           !reregister ||
@@ -357,6 +363,7 @@ export default function RegisterPage({
       const restoredData = draft
         ? { ...profileData, ...draft.data, personalEmail: user.email }
         : profileData;
+      restoredData.batch = restoredData.nim.slice(0, 2);
       if (!reregister) restoredData.membershipPosition = "Member";
 
       if (draft && restoredData.institutionType === "BINUS" && options.data) {
@@ -438,7 +445,13 @@ export default function RegisterPage({
     setVerificationChecking(false);
   };
   const update = (name: keyof RegistrationData, value: string) => {
-    setData((current) => ({ ...current, [name]: value }));
+    setData((current) => ({
+      ...current,
+      [name]: value,
+      ...(name === "nim"
+        ? { batch: /^\d{2}/.test(value) ? value.slice(0, 2) : "" }
+        : {}),
+    }));
     if (
       name === "binusEmail" &&
       value.trim().toLowerCase() !== emailRef.current
@@ -646,14 +659,6 @@ export default function RegisterPage({
             value={data.nim}
             onChange={update}
             error={fieldErrors.nim}
-          />
-          <Field
-            label="BINUSian batch"
-            name="batch"
-            value={data.batch}
-            error={fieldErrors.batch}
-            onChange={update}
-            placeholder="e.g. 28"
           />
           <Field
             label="BINUS email"
@@ -1162,12 +1167,14 @@ export default function RegisterPage({
                     onChange={update}
                   />
                   <Field
-                    label="Phone number"
+                    label="WhatsApp number"
                     name="phone"
                     value={data.phone}
                     error={fieldErrors.phone}
                     onChange={update}
                     type="tel"
+                    inputMode="numeric"
+                    pattern="[0-9]+"
                   />
                   <Field
                     label="Google email"

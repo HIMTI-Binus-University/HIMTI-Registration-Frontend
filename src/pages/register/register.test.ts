@@ -52,7 +52,7 @@ describe("registration payloads", () => {
         outlookEmail: "member@binus.ac.id",
         studyProgramId: "cs-id",
         nim: "2600000000",
-        graduateBatch: "28",
+        graduateBatch: "26",
       },
     ],
     [
@@ -150,7 +150,14 @@ describe("registration validation", () => {
         1,
         context,
       ).fields.phone,
+    ).toBeTruthy();
+    expect(
+      validateRegistrationStep(base, 1, context).fields.phone,
     ).toBeUndefined();
+    expect(
+      validateRegistrationStep({ ...base, nim: "AB123" }, 2, context).fields
+        .nim,
+    ).toBeTruthy();
   });
   test("requires verified BINUS address and current option IDs", () => {
     const invalid = validateRegistrationStep(

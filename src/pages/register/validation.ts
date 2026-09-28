@@ -54,11 +54,8 @@ export function validateRegistrationStep(
   if (step === 1) {
     required("name", "Full name", 255);
     required("phone", "Phone number", 20);
-    if (
-      !fields.phone &&
-      (!/[0-9]/.test(data.phone) || !/^[+\d\s\-()/]+$/.test(data.phone))
-    )
-      fields.phone = "Enter a valid phone number";
+    if (!fields.phone && !/^[0-9]+$/.test(data.phone))
+      fields.phone = "Enter digits only for the WhatsApp number";
     if (
       !emailPattern.test(data.personalEmail.trim()) ||
       data.personalEmail.trim().length > 100
@@ -97,7 +94,8 @@ export function validateRegistrationStep(
       }
       if (data.userType === "Student") {
         required("nim", "NIM", 50);
-        required("batch", "BINUSian batch", 20);
+        if (!fields.nim && !/^\d{2}/.test(data.nim))
+          fields.nim = "NIM must start with two digits";
       }
     } else {
       required(
