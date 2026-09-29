@@ -54,8 +54,9 @@ export function validateRegistrationStep(
   if (step === 1) {
     required("name", "Full name", 255);
     required("phone", "Phone number", 20);
-    if (!fields.phone && !/^[0-9]+$/.test(data.phone))
-      fields.phone = "Enter digits only for the WhatsApp number";
+    if (!fields.phone && !/^(?=.*[1-9])[0-9]+$/.test(data.phone.trim()))
+      fields.phone =
+        "Enter digits only; the WhatsApp number cannot be all zeros";
     if (
       !emailPattern.test(data.personalEmail.trim()) ||
       data.personalEmail.trim().length > 100
@@ -94,8 +95,8 @@ export function validateRegistrationStep(
       }
       if (data.userType === "Student") {
         required("nim", "NIM", 50);
-        if (!fields.nim && !/^\d{2}/.test(data.nim))
-          fields.nim = "NIM must start with two digits";
+        if (!fields.nim && !/^[1-9][0-9]{9}$/.test(data.nim.trim()))
+          fields.nim = "BINUS NIM must be 10 digits and cannot start with zero";
       }
     } else {
       required(
@@ -105,6 +106,8 @@ export function validateRegistrationStep(
       );
       if (data.userType === "Student") {
         required("nim", "Student ID / NIM", 50);
+        if (!fields.nim && /^0+$/.test(data.nim.trim()))
+          fields.nim = "Student ID cannot be all zeros";
         required("major", "Major", 255);
       }
     }

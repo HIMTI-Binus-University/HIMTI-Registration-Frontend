@@ -163,7 +163,7 @@ function ProfileEditForm({
               onChange={(value) => update("phoneNumber", value)}
               type="tel"
               inputMode="numeric"
-              pattern="[0-9]+"
+              pattern="(?=.*[1-9])[0-9]+"
               required
             />
             <Field
@@ -218,6 +218,8 @@ function ProfileEditForm({
               />
               <Field
                 label="NIM"
+                inputMode="numeric"
+                pattern="[1-9][0-9]{9}"
                 value={data.nim}
                 onChange={(value) => update("nim", value)}
                 required
@@ -431,10 +433,17 @@ function Field({
         type={type}
         inputMode={inputMode}
         pattern={pattern}
+        maxLength={
+          inputMode === "numeric" ? (type === "tel" ? 20 : 10) : undefined
+        }
         value={value}
         required={required}
         disabled={disabled}
-        onChange={(event) => onChange?.(event.target.value)}
+        onChange={(event) => {
+          if (inputMode === "numeric" && /[^0-9]/.test(event.target.value))
+            return;
+          onChange?.(event.target.value);
+        }}
         className="mt-2 h-11 w-full rounded-xl border border-brand-blue/15 bg-white px-3 text-sm outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/15 disabled:bg-slate-100 disabled:text-brand-slate"
       />
     </label>

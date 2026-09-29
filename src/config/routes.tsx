@@ -1,6 +1,7 @@
 import RootPage from "@/pages/root";
 import LoginPage from "@/pages/login";
 import AuthCallbackPage from "@/pages/auth-callback";
+import AuthErrorPage from "@/pages/auth-error";
 import RegisterPage from "@/pages/register";
 import ProfileEditPage from "@/pages/profile-edit";
 import DashboardPage from "@/pages/dashboard";
@@ -25,6 +26,7 @@ export const routes: AppRoute[] = [
   { path: "/", element: <RootPage /> },
   { path: "/login", element: <LoginPage /> },
   { path: "/auth/callback", element: <AuthCallbackPage /> },
+  { path: "/auth/error", element: <AuthErrorPage /> },
   {
     path: "/event-groups/:eventGroupId",
     element: <EventGroupPage />,

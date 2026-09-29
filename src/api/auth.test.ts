@@ -1,6 +1,7 @@
 import { beforeEach, expect, test, vi } from "vitest";
 import apiClient from "@/config/api-client";
 import { signInWithGoogle, signOut } from "./auth";
+import { runtime } from "@/config/runtime";
 
 vi.mock("@/config/api-client", () => ({ default: { post: vi.fn() } }));
 
@@ -16,8 +17,19 @@ test("rejects social sign-in responses without a redirect URL", async () => {
     expect.objectContaining({
       provider: "google",
       callbackURL: expect.stringContaining("returnTo="),
+      errorCallbackURL: `${runtime.appUrl}/auth/error`,
     }),
   );
+});
+
+test("blocks overlapping sign-ins but permits retry after failure", async () => {
+  vi.mocked(apiClient.post).mockResolvedValue({ data: {} });
+  const first = signInWithGoogle("/dashboard");
+  await signInWithGoogle("/events");
+  await expect(first).rejects.toThrow();
+  expect(apiClient.post).toHaveBeenCalledTimes(1);
+  await expect(signInWithGoogle("/dashboard")).rejects.toThrow();
+  expect(apiClient.post).toHaveBeenCalledTimes(2);
 });
 
 test("uses the Better Auth API-prefixed sign-out path", async () => {

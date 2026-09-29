@@ -38,3 +38,7 @@ export function consumeReturnPath(fallback = "/dashboard") {
   sessionStorage.removeItem(RETURN_PATH_KEY);
   return sanitizeReturnPath(value, fallback);
 }
+
+export function getReturnPath() {
+  return sanitizeReturnPath(sessionStorage.getItem(RETURN_PATH_KEY));
+}
