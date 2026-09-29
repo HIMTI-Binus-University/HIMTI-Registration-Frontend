@@ -137,6 +137,21 @@ describe("registration validation", () => {
     emailVerified: true,
   };
   test("rejects whitespace and invalid phone on the personal step", () => {
+    for (const nim of [
+      "0",
+      "0000000000",
+      "0123456789",
+      "26letters",
+      "26000000000",
+    ]) {
+      expect(
+        validateRegistrationStep({ ...base, nim }, 2, context).fields.nim,
+      ).toBeTruthy();
+    }
+    expect(
+      validateRegistrationStep({ ...base, phone: "00000" }, 1, context).fields
+        .phone,
+    ).toBeTruthy();
     const invalid = validateRegistrationStep(
       { ...base, name: "   ", phone: "abc" },
       1,

@@ -137,12 +137,25 @@ function Field({
         value={value}
         inputMode={inputMode}
         pattern={pattern}
+        maxLength={
+          name === "phone"
+            ? 20
+            : name === "nim"
+              ? inputMode === "numeric"
+                ? 10
+                : 50
+              : undefined
+        }
         required={required}
         readOnly={readOnly}
         placeholder={placeholder}
         aria-invalid={!!error}
         aria-describedby={error ? `${name}-error` : undefined}
-        onChange={(event) => onChange(name, event.target.value)}
+        onChange={(event) => {
+          if (inputMode === "numeric" && /[^0-9]/.test(event.target.value))
+            return;
+          onChange(name, event.target.value);
+        }}
         className={`mt-2 h-11 w-full rounded-xl border bg-white px-3 text-sm font-medium text-brand-ink outline-none transition focus:ring-2 read-only:bg-slate-100 read-only:text-brand-slate ${error ? "border-red-500 focus:ring-red-200" : "border-brand-blue/15 focus:border-brand-blue focus:ring-brand-blue/15"}`}
       />
       {error && (
@@ -656,6 +669,8 @@ export default function RegisterPage({
           <Field
             label="NIM"
             name="nim"
+            inputMode="numeric"
+            pattern="[1-9][0-9]{9}"
             value={data.nim}
             onChange={update}
             error={fieldErrors.nim}

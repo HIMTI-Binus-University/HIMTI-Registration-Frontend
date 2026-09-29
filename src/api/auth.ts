@@ -26,17 +26,26 @@ export function useSession() {
   });
 }
 
+let signingIn = false;
 export async function signInWithGoogle(returnTo?: string) {
-  const { data } = await apiClient.post<{ url?: string }>(
-    "/api/auth/sign-in/social",
-    {
-      provider: "google",
-      callbackURL: `${runtime.appUrl}/auth/callback${returnTo ? `?returnTo=${encodeURIComponent(returnTo)}` : ""}`,
-    },
-  );
-  if (!data.url)
-    throw new Error("Google sign-in did not return a redirect URL.");
-  window.location.assign(data.url);
+  if (signingIn) return;
+  signingIn = true;
+  try {
+    const { data } = await apiClient.post<{ url?: string }>(
+      "/api/auth/sign-in/social",
+      {
+        provider: "google",
+        errorCallbackURL: `${runtime.appUrl}/auth/error`,
+        callbackURL: `${runtime.appUrl}/auth/callback${returnTo ? `?returnTo=${encodeURIComponent(returnTo)}` : ""}`,
+      },
+    );
+    if (!data.url)
+      throw new Error("Google sign-in did not return a redirect URL.");
+    window.location.assign(data.url);
+  } catch (error) {
+    signingIn = false;
+    throw error;
+  }
 }
 
 export async function signOut() {
