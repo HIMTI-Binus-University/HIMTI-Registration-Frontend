@@ -4,7 +4,11 @@ import type { ReactNode } from "react";
 import { useCurrentUser } from "@/api/users/queries";
 import { useMembershipStatus } from "@/api/membership/queries";
 import { Button } from "@/components/ui/button";
-import { currentReturnPath, storeReturnPath } from "@/utils/return-path";
+import {
+  currentReturnPath,
+  rememberElectionReturn,
+  storeReturnPath,
+} from "@/utils/return-path";
 import { AppLoading } from "@/components/app-motion";
 
 export function AccountLoading() {
@@ -29,15 +33,21 @@ export function AccountLoadError({ retry }: { retry: () => void }) {
 export function RequireAuth({ children }: { children: ReactNode }) {
   const location = useLocation();
   const query = useCurrentUser();
+  const returnTo = new URLSearchParams(location.search).get("returnTo");
   if (query.isPending) return <AccountLoading />;
   if (query.isError) {
-    if (axios.isAxiosError(query.error) && query.error.response?.status === 401)
+    if (
+      axios.isAxiosError(query.error) &&
+      query.error.response?.status === 401
+    ) {
+      rememberElectionReturn(returnTo);
       return (
         <Navigate
           to={`/login?returnTo=${encodeURIComponent(storeReturnPath(currentReturnPath(location)))}`}
           replace
         />
       );
+    }
     return <AccountLoadError retry={() => void query.refetch()} />;
   }
   return children;
