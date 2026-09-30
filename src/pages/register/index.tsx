@@ -31,7 +31,12 @@ import {
   type RegistrationData,
   type UserType,
 } from "@/pages/register/payload";
-import { sanitizeReturnPath } from "@/utils/return-path";
+import {
+  clearElectionReturn,
+  getElectionReturn,
+  rememberElectionReturn,
+  sanitizeReturnPath,
+} from "@/utils/return-path";
 import {
   clearRegistrationDraft,
   readRegistrationDraft,
@@ -263,6 +268,10 @@ export default function RegisterPage({
     searchParams.get("returnTo"),
     "/dashboard",
   );
+  const electionReturnTo = !reregister
+    ? (rememberElectionReturn(searchParams.get("returnTo")) ??
+      getElectionReturn())
+    : null;
   const [step, setStep] = useState(0);
   const [data, setData] = useState(initialData);
   const [errors, setErrors] = useState<string[]>([]);
@@ -860,6 +869,7 @@ export default function RegisterPage({
     saveProfile.mutate(buildRegistrationPayload(data, options.data), {
       onSuccess: () => {
         if (draftContext) clearRegistrationDraft(draftContext);
+        if (!electionReturnTo) clearElectionReturn();
         setSubmitted(true);
       },
       onError: (error) => {
@@ -923,9 +933,13 @@ export default function RegisterPage({
               : "Your registration is complete. You can now access your member information and community contacts."}
           </p>
           <Button asChild className="mt-8">
-            <Link to={returnTo}>
-              {returnTo === "/dashboard" ? "Open dashboard" : "Continue"}
-            </Link>
+            {electionReturnTo ? (
+              <a href={electionReturnTo}>Continue to election</a>
+            ) : (
+              <Link to={returnTo}>
+                {returnTo === "/dashboard" ? "Open dashboard" : "Continue"}
+              </Link>
+            )}
           </Button>
         </div>
       </div>
