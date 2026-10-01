@@ -1,11 +1,12 @@
 import axios from "axios";
 import { Navigate, useLocation } from "react-router-dom";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { useCurrentUser } from "@/api/users/queries";
 import { useMembershipStatus } from "@/api/membership/queries";
 import { Button } from "@/components/ui/button";
 import {
   currentReturnPath,
+  getElectionReturn,
   rememberElectionReturn,
   storeReturnPath,
 } from "@/utils/return-path";
@@ -75,9 +76,29 @@ export function RequireIncompleteRegistration({
   children: ReactNode;
 }) {
   const query = useCurrentUser();
+  const location = useLocation();
+  const [startedIncomplete, setStartedIncomplete] = useState(false);
   if (query.isPending) return <AccountLoading />;
   if (query.isError)
     return <AccountLoadError retry={() => void query.refetch()} />;
+  if (!query.data.registrationCompleted && !startedIncomplete)
+    setStartedIncomplete(true);
+  if (startedIncomplete || !query.data.registrationCompleted) return children;
+  const electionReturn =
+    rememberElectionReturn(
+      new URLSearchParams(location.search).get("returnTo"),
+    ) ?? getElectionReturn();
+  if (query.data.registrationCompleted && electionReturn)
+    return (
+      <main className="grid min-h-screen place-items-center p-6">
+        <section className="space-y-5 text-center">
+          <h1 className="text-3xl font-bold">Registration complete</h1>
+          <Button asChild>
+            <a href={electionReturn}>Continue to election</a>
+          </Button>
+        </section>
+      </main>
+    );
   return query.data.registrationCompleted ? (
     <Navigate to="/dashboard" replace />
   ) : (
