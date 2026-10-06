@@ -149,7 +149,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Check current voter eligibility */
+        /** Check active verified BINUS voter eligibility; requires admin-attested SoCS Student (canonical program) or SoCS Lecturer membership */
         get: {
             parameters: {
                 query?: never;
@@ -753,6 +753,8 @@ export interface paths {
                                 /** Format: date-time */
                                 openedAt: string | null;
                                 /** Format: date-time */
+                                originalEndsAt: string;
+                                /** Format: date-time */
                                 publishedAt: string | null;
                                 slug: string;
                                 /** Format: date-time */
@@ -975,6 +977,8 @@ export interface paths {
                                 id: string;
                                 /** Format: date-time */
                                 openedAt: string | null;
+                                /** Format: date-time */
+                                originalEndsAt: string;
                                 /** Format: date-time */
                                 publishedAt: string | null;
                                 slug: string;
@@ -2673,6 +2677,151 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/internal/elections/{electionId}/voting-end": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update draft or open voting end, not earlier than its original end */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    electionId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** Format: date-time */
+                        endsAt: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Operation completed. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ElectionResponse"];
+                    };
+                };
+                /** @description Validation error. */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {string} */
+                            code: "VALIDATION_ERROR";
+                            details?: unknown;
+                            errors?: unknown;
+                            message: string;
+                            msg: string;
+                            /** @enum {string} */
+                            status: "fail" | "error";
+                            success?: boolean;
+                        } | {
+                            errors?: unknown;
+                        };
+                    };
+                };
+                /** @description Authentication required. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Not eligible or missing permission. */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            code: string;
+                            details?: unknown;
+                            errors?: unknown;
+                            message: string;
+                            msg: string;
+                            /** @enum {string} */
+                            status: "fail" | "error";
+                            success?: boolean;
+                        } | {
+                            errors?: unknown;
+                            message?: string;
+                            msg?: string;
+                            status?: string;
+                            success?: boolean;
+                        };
+                    };
+                };
+                /** @description Election or candidate not found. */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            code: string;
+                            details?: unknown;
+                            errors?: unknown;
+                            message: string;
+                            msg: string;
+                            /** @enum {string} */
+                            status: "fail" | "error";
+                            success?: boolean;
+                        } | {
+                            errors?: unknown;
+                            message?: string;
+                            msg?: string;
+                            status?: string;
+                            success?: boolean;
+                        };
+                    };
+                };
+                /** @description Election state or duplicate-vote conflict. */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            code: string;
+                            details?: unknown;
+                            errors?: unknown;
+                            message: string;
+                            msg: string;
+                            /** @enum {string} */
+                            status: "fail" | "error";
+                            success?: boolean;
+                        } | {
+                            errors?: unknown;
+                            message?: string;
+                            msg?: string;
+                            status?: string;
+                            success?: boolean;
+                        };
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
     "/api/internal/elections/candidates/{candidateId}": {
         parameters: {
             query?: never;
@@ -2681,7 +2830,7 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /** Update a draft candidate */
+        /** Update a draft or open candidate; ballot number is excluded and immutable; deactivation preserves votes */
         put: {
             parameters: {
                 query?: never;
@@ -2694,7 +2843,6 @@ export interface paths {
             requestBody: {
                 content: {
                     "application/json": {
-                        ballotNumber?: number;
                         biography?: string | null;
                         experiences?: string[];
                         isActive?: boolean;
@@ -8934,7 +9082,7 @@ export interface components {
                 eligible: boolean;
                 hasVoted: boolean;
                 /** @enum {string|null} */
-                reason: "ACCOUNT_INACTIVE" | "PROFILE_INCOMPLETE" | "OUTLOOK_NOT_VERIFIED" | "OUTLOOK_DOMAIN_NOT_ALLOWED" | "NOT_COMPUTER_SCIENCE" | "ELECTION_NOT_OPEN" | "ALREADY_VOTED" | null;
+                reason: "ACCOUNT_INACTIVE" | "PROFILE_INCOMPLETE" | "OUTLOOK_NOT_VERIFIED" | "OUTLOOK_DOMAIN_NOT_ALLOWED" | "NOT_SOCS" | "ELECTION_NOT_OPEN" | "ALREADY_VOTED" | null;
             };
             /** @enum {string} */
             msg: "success";
@@ -8968,6 +9116,8 @@ export interface components {
                 id: string;
                 /** Format: date-time */
                 openedAt: string | null;
+                /** Format: date-time */
+                originalEndsAt: string;
                 /** Format: date-time */
                 publishedAt: string | null;
                 slug: string;
