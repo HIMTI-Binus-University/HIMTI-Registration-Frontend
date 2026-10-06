@@ -361,3 +361,104 @@ test("shows the API Bundle Code after a direct refresh without navigation state"
   expect(screen.queryByText(/leader|owner|buyer|payer/i)).toBeNull();
   client.clear();
 });
+
+test("keeps typed answers through another member joining, saving and a revision conflict", async () => {
+  const question = {
+    id: "diet",
+    logicalId: "diet-logical",
+    label: "Diet",
+    fieldKey: "diet",
+    type: "TEXT",
+    isRequired: true,
+    orderIndex: 0,
+    options: [],
+    validation: {},
+  };
+  const ownMember = {
+    id: "one",
+    name: "Member One",
+    isCurrentUser: true,
+    ready: false,
+    status: "ACTIVE",
+    submissions: [{
+      formVersion: 1,
+      form: { sections: [{ id: "section", title: "Preferences", questions: [question] }] },
+      answers: [],
+    }],
+    supplementalRequests: [],
+    supplementalRevision: 1,
+  };
+  const otherMember = {
+    id: "two",
+    name: "Member Two",
+    isCurrentUser: false,
+    ready: false,
+    status: "ACTIVE",
+  };
+  let registration = {
+    id: "bundle-draft",
+    revision: 1,
+    eventId: "event",
+    orderNumber: "BUNDLE-DRAFT",
+    status: "ASSEMBLING",
+    seatCount: 2,
+    totalMinor: "90000",
+    bundleCode: "AAAA-BBBB-CCCC-DDDD",
+    profile: null,
+    event: { name: "Workshop", cancellationClosesAt: null },
+    ticketPackage: { name: "Bundle" },
+    members: [ownMember] as Array<typeof ownMember | typeof otherMember>,
+  };
+  vi.mocked(apiClient.get).mockImplementation(async () => ({ data: { data: registration } }));
+  vi.mocked(apiClient.put).mockReset();
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  render(
+    <QueryClientProvider client={client}>
+      <MemoryRouter initialEntries={["/registrations/bundle-draft"]}>
+        <Routes>
+          <Route path="/registrations/:registrationId" element={<RegistrationDetailPage />} />
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
+  const input = await screen.findByRole("textbox", { name: "Diet" });
+  fireEvent.change(input, { target: { value: "Vegetarian" } });
+  registration = { ...registration, revision: 2, members: [ownMember, otherMember] };
+  await client.refetchQueries();
+  expect(await screen.findByText("Member Two")).toBeInTheDocument();
+  expect(screen.getByRole("textbox", { name: "Diet" })).toHaveValue("Vegetarian");
+  fireEvent.change(input, { target: { value: "Vegetarian, no nuts" } });
+  registration = { ...registration, revision: 3, members: [ownMember, { ...otherMember, ready: true }] };
+  await client.refetchQueries();
+  expect(await screen.findByText("Ready")).toBeInTheDocument();
+  expect(screen.getByRole("textbox", { name: "Diet" })).toHaveValue("Vegetarian, no nuts");
+
+  // Another write races the submit after the last poll. Do not retry automatically.
+  vi.mocked(apiClient.put).mockImplementationOnce(async () => {
+    registration = { ...registration, revision: 4, bundleCode: "NEW-BUNDLE-CODE" };
+    throw { isAxiosError: true, response: { status: 409, data: {
+      code: "REVISION_CONFLICT", message: "Registration revision does not match",
+    } } };
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Submit registration" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent(/input is kept/i);
+  expect(screen.getByRole("textbox", { name: "Diet" })).toHaveValue("Vegetarian, no nuts");
+  expect(await screen.findByText("NEW-BUNDLE-CODE")).toBeInTheDocument();
+  expect(apiClient.put).toHaveBeenCalledTimes(1);
+  expect(apiClient.put).toHaveBeenLastCalledWith(
+    "/api/me/event-registrations/bundle-draft/answers",
+    { expectedRevision: 3, answers: [{ questionId: "diet", value: "Vegetarian, no nuts" }] },
+  );
+  vi.mocked(apiClient.put).mockResolvedValueOnce({ data: { data: registration } });
+  fireEvent.click(screen.getByRole("button", { name: "Submit registration" }));
+  await waitFor(() => expect(apiClient.put).toHaveBeenCalledTimes(2));
+  expect(apiClient.put).toHaveBeenLastCalledWith(
+    "/api/me/event-registrations/bundle-draft/answers",
+    { expectedRevision: 4, answers: [{ questionId: "diet", value: "Vegetarian, no nuts" }] },
+  );
+  expect(await screen.findByRole("status")).toHaveTextContent("Answers saved.");
+  expect(screen.getByRole("textbox", { name: "Diet" })).toHaveValue("Vegetarian, no nuts");
+  client.clear();
+});

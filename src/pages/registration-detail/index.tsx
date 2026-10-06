@@ -68,14 +68,14 @@ export default function RegistrationDetailPage() {
   const { registrationId = "" } = useParams();
   const registration = useMyEventRegistration(registrationId);
   if (registration.isPending) return <Status>Loading registration...</Status>;
-  if (registration.isError || !registration.data)
+  if (!registration.data)
     return <Status>Registration could not be loaded.</Status>;
   const member = registration.data.members.find((item) => item.isCurrentUser);
   if (!member) return <Status>Registration access is unavailable.</Status>;
   const sections = member?.submissions?.[0]?.form.sections ?? [];
   return (
     <RegistrationDetail
-      key={`${registration.data.id}:${registration.data.revision}:${member?.submissions?.[0]?.formVersion ?? "none"}`}
+      key={`${registration.data.id}:${member.id}:${member?.submissions?.[0]?.formVersion ?? "none"}`}
       registration={registration.data}
       sections={sections}
       refetch={() => void registration.refetch()}
@@ -137,6 +137,9 @@ function RegistrationDetail({
         onSuccess: () => {
           setSaved(true);
           refetch();
+        },
+        onError: (error) => {
+          if (parseApiError(error).code === "REVISION_CONFLICT") refetch();
         },
       },
     );
@@ -397,7 +400,9 @@ function RegistrationDetail({
             </div>
             {requestError && (
               <p role="alert" className="mt-5 text-sm text-red-700">
-                {parseApiError(requestError).message}
+                {parseApiError(requestError).code === "REVISION_CONFLICT"
+                  ? "This registration changed before your answers could be saved. Your input is kept. Review the updated Bundle members and submit again when ready."
+                  : parseApiError(requestError).message}
               </p>
             )}
             {saved && (
