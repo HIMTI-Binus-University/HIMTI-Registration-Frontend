@@ -1,9 +1,11 @@
 import { ArrowRight, CalendarDays, Layers3, MapPin } from "lucide-react";
+import { useRef } from "react";
 import { Link } from "react-router-dom";
 import { usePublicEventGroups, usePublicEvents } from "@/api/events/queries";
 import { EventImage } from "@/components/event-image";
 import { AppHeader } from "@/components/layout/app-header";
 import { Button } from "@/components/ui/button";
+import { gsap, useGSAP } from "@/lib/motion";
 
 const date = (value: string | null) =>
   value
@@ -16,29 +18,28 @@ const date = (value: string | null) =>
 export default function EventsPage() {
   const groups = usePublicEventGroups();
   const events = usePublicEvents();
+  const pageRef = useRef<HTMLElement>(null);
   const pending = groups.isPending || events.isPending;
   const failed = groups.isError || events.isError;
 
+  useGSAP(() => {
+    const media = gsap.matchMedia();
+    media.add("(prefers-reduced-motion: no-preference)", () => {
+      gsap.from("[data-dashboard-reveal]", { y: 12, autoAlpha: 0, duration: 0.45, stagger: 0.06, ease: "power3.out" });
+    });
+    return () => media.revert();
+  }, { scope: pageRef });
+
   return (
-    <main className="min-h-screen bg-background px-4 py-5 sm:px-6 sm:py-8">
+    <main ref={pageRef} className="min-h-screen bg-background px-4 py-5 sm:px-6 sm:py-8">
       <div className="mx-auto max-w-6xl">
         <AppHeader />
-        <section className="mt-10">
-          <p className="text-xs font-bold uppercase tracking-[0.14em] text-brand-blue">
-            Open to explore
-          </p>
-          <h1 className="mt-2 text-4xl font-bold tracking-[-0.04em] text-brand-navy sm:text-5xl">
-            HIMTI events
-          </h1>
-          <p className="mt-3 max-w-2xl text-brand-slate">
-            Discover published event groups and their upcoming experiences.
-          </p>
+        <section data-dashboard-reveal className="mt-10">
+          <h1 className="text-4xl font-bold tracking-[-0.04em] text-brand-navy sm:text-5xl">HIMTI events</h1>
+          <p className="mt-3 max-w-2xl text-brand-slate">Discover published event groups and their upcoming experiences.</p>
         </section>
         {pending && (
-          <div
-            role="status"
-            className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3"
-          >
+          <div data-dashboard-reveal role="status" className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {[1, 2, 3].map((item) => (
               <div
                 key={item}

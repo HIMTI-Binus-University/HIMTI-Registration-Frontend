@@ -1,7 +1,9 @@
 import { CalendarDays, Ticket } from "lucide-react";
+import { useRef } from "react";
 import { Link } from "react-router-dom";
 import { useMyEventTickets } from "@/api/event-tickets/queries";
 import { AppHeader } from "@/components/layout/app-header";
+import { gsap, useGSAP } from "@/lib/motion";
 
 const date = (value: string | null) =>
   value
@@ -13,33 +15,33 @@ const date = (value: string | null) =>
 
 export default function TicketsPage() {
   const query = useMyEventTickets();
+  const pageRef = useRef<HTMLElement>(null);
+  useGSAP(() => {
+    const media = gsap.matchMedia();
+    media.add("(prefers-reduced-motion: no-preference)", () => {
+      gsap.from("[data-dashboard-reveal]", { y: 12, autoAlpha: 0, duration: 0.45, stagger: 0.06, ease: "power3.out" });
+    });
+    return () => media.revert();
+  }, { scope: pageRef });
   return (
-    <main className="min-h-screen bg-background px-4 py-5 sm:px-6 sm:py-8">
+    <main ref={pageRef} className="min-h-screen bg-background px-4 py-5 sm:px-6 sm:py-8">
       <div className="mx-auto max-w-6xl">
         <AppHeader />
-        <section className="mt-10">
-          <p className="text-xs font-bold uppercase tracking-[0.14em] text-brand-blue">
-            Your credentials
-          </p>
-          <h1 className="mt-2 text-3xl font-bold tracking-[-0.03em] text-brand-navy sm:text-4xl">
-            Event tickets
-          </h1>
-          <p className="mt-2 text-brand-slate">
-            Tickets appear after your registration is confirmed, even when
-            attendance is not enabled.
-          </p>
+        <section data-dashboard-reveal className="mt-10">
+          <h1 className="text-4xl font-bold tracking-[-0.04em] text-brand-navy sm:text-5xl">Event tickets</h1>
+          <p className="mt-3 max-w-2xl text-brand-slate">Tickets appear after your registration is confirmed, even when attendance is not enabled.</p>
         </section>
         {query.isPending && (
-          <p role="status" className="mt-8">
+          <p data-dashboard-reveal role="status" className="mt-8 rounded-2xl border border-dashed border-brand-blue/20 bg-white p-8 text-center text-sm text-brand-slate">
             Loading tickets...
           </p>
         )}
         {query.isError && (
-          <p role="alert" className="mt-8 text-red-700">
+          <p data-dashboard-reveal role="alert" className="mt-8 rounded-2xl border border-dashed border-red-200 bg-white p-8 text-center text-sm text-red-700">
             Tickets could not be loaded.
           </p>
         )}
-        <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div data-dashboard-reveal className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {query.data?.map((ticket) => (
             <Link
               key={ticket.id}

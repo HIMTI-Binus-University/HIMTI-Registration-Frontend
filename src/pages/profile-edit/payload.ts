@@ -15,6 +15,7 @@ export type ProfileFormData = {
 
 export function buildProfilePayload(
   data: ProfileFormData,
+  binusUniversityId?: string,
 ): UpdateCurrentUserProfilePayload {
   const common = {
     institutionType: data.institutionType,
@@ -27,7 +28,7 @@ export function buildProfilePayload(
     ? {
         ...common,
         institutionType: "BINUS",
-        universityId: data.universityId,
+        universityId: binusUniversityId ?? data.universityId,
         studyProgramId: data.studyProgramId,
         regionId: data.regionId,
         nim: data.nim,

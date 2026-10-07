@@ -95,7 +95,14 @@ function ProfileEditForm({
       return;
     }
     updateProfile.mutate(
-      buildProfilePayload({ ...data, institutionType: data.institutionType }),
+      buildProfilePayload(
+        { ...data, institutionType: data.institutionType },
+        options?.universities.find(
+          (university) =>
+            university.shortName?.toUpperCase() === "BINUS" ||
+            university.name.toUpperCase() === "BINUS UNIVERSITY",
+        )?.id,
+      ),
       {
         onSuccess: () => setSaved(true),
         onError: (requestError) => {
@@ -195,13 +202,6 @@ function ProfileEditForm({
 
           {data.institutionType === "BINUS" ? (
             <div className="mt-6 grid gap-5 sm:grid-cols-2">
-              <SelectField
-                label="University"
-                value={data.universityId}
-                options={options?.universities ?? []}
-                onChange={(value) => update("universityId", value)}
-                disabled={optionsPending}
-              />
               <SelectField
                 label="Study program"
                 value={data.studyProgramId}
