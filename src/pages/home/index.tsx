@@ -110,14 +110,6 @@ export default function HomePage() {
     };
   }, []);
 
-  if (!assetsReady) {
-    return (
-      <main className="app-loading" aria-live="polite" aria-busy="true">
-        <img src="/logo-himti.png" width={72} height={72} alt="" />
-        <strong>Preparing your HIMTI experience...</strong>
-      </main>
-    );
-  }
 
   useGSAP(
     () => {
