@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { LogOut } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, NavLink, useNavigate } from "react-router-dom";
 import { signOut, useSession } from "@/api/auth";
 import { Button } from "@/components/ui/button";
 
@@ -50,18 +50,38 @@ export function AppHeader() {
         </Link>
         <nav
           aria-label="Main navigation"
-          className="order-3 flex w-full items-center gap-1 border-t border-brand-blue/10 pt-3 sm:order-none sm:w-auto sm:border-0 sm:pt-0"
+          className="order-3 flex min-w-0 w-full flex-wrap items-center gap-1 border-t border-brand-blue/10 pt-3 sm:order-none sm:w-auto sm:border-0 sm:pt-0"
         >
-          <Button asChild variant="outline" className="border-0 px-3">
-            <Link to="/events">Events</Link>
-          </Button>
           {session.data && (
-            <Button asChild variant="outline" className="border-0 px-3">
-              <Link to="/tickets">Tickets</Link>
-            </Button>
+            <>
+              <NavLink
+                to="/dashboard"
+                className={({ isActive }) =>
+                  `inline-flex min-h-11 items-center rounded-md px-3 text-sm font-medium transition-colors ${isActive ? "bg-brand-blue/10 text-brand-blue" : "text-brand-slate hover:bg-brand-blue/5 hover:text-brand-navy"}`
+                }
+              >
+                Home
+              </NavLink>
+              <NavLink
+                to="/events"
+                className={({ isActive }) =>
+                  `inline-flex min-h-11 items-center rounded-md px-3 text-sm font-medium transition-colors ${isActive ? "bg-brand-blue/10 text-brand-blue" : "text-brand-slate hover:bg-brand-blue/5 hover:text-brand-navy"}`
+                }
+              >
+                Events
+              </NavLink>
+              <NavLink
+                to="/tickets"
+                className={({ isActive }) =>
+                  `inline-flex min-h-11 items-center rounded-md px-3 text-sm font-medium transition-colors ${isActive ? "bg-brand-blue/10 text-brand-blue" : "text-brand-slate hover:bg-brand-blue/5 hover:text-brand-navy"}`
+                }
+              >
+                Tickets
+              </NavLink>
+            </>
           )}
           {!session.data && (
-            <Button asChild className="ml-auto">
+            <Button asChild className="ml-auto min-h-11">
               <Link to="/login">Log in</Link>
             </Button>
           )}

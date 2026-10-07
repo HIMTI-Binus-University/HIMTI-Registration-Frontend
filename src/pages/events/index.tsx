@@ -37,7 +37,7 @@ export default function EventsPage() {
         {pending && (
           <div
             role="status"
-            className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3"
+            className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3"
           >
             {[1, 2, 3].map((item) => (
               <div
@@ -67,20 +67,20 @@ export default function EventsPage() {
             >
               Event groups
             </h2>
-            <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {groups.data.map((group) => (
                 <Link
                   key={group.id}
                   to={`/event-groups/${encodeURIComponent(group.id)}`}
-                  className="overflow-hidden rounded-2xl border border-brand-blue/10 bg-white shadow-sm"
+                  className="min-w-0 overflow-hidden rounded-2xl border border-brand-blue/10 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 >
                   <EventImage
                     src={group.coverImageUrl}
                     alt={`${group.name} cover`}
                     className="h-40"
                   />
-                  <div className="p-5">
-                    <h3 className="text-xl font-bold text-brand-navy">
+                  <div className="p-6">
+                    <h3 className="break-words text-xl font-bold text-brand-navy">
                       {group.name}
                     </h3>
                     <p className="mt-2 line-clamp-2 text-sm leading-6 text-brand-slate">
@@ -105,12 +105,12 @@ export default function EventsPage() {
               Events
             </h2>
             {events.data?.length ? (
-              <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                 {events.data.map((event) => (
                   <Link
                     key={event.id}
                     to={`/events/${encodeURIComponent(event.id)}`}
-                    className="group overflow-hidden rounded-2xl border border-brand-blue/10 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-ring"
+                    className="group min-w-0 overflow-hidden rounded-2xl border border-brand-blue/10 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-ring"
                   >
                     <EventImage
                       src={
@@ -119,13 +119,13 @@ export default function EventsPage() {
                       alt={`${event.name} cover`}
                       className="h-44"
                     />
-                    <div className="p-5">
+                    <div className="p-6">
                       {event.eventGroup && (
                         <p className="text-xs font-bold uppercase tracking-wide text-brand-blue">
                           {event.eventGroup.name}
                         </p>
                       )}
-                      <h3 className="mt-1 text-xl font-bold text-brand-navy">
+                      <h3 className="mt-1 break-words text-xl font-bold text-brand-navy">
                         {event.name}
                       </h3>
                       <p className="mt-2 line-clamp-2 text-sm leading-6 text-brand-slate">
