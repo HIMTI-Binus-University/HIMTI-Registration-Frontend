@@ -19,15 +19,10 @@ export default function TicketsPage() {
   useGSAP(() => {
     const media = gsap.matchMedia();
     media.add("(prefers-reduced-motion: no-preference)", () => {
-      gsap.from("[data-dashboard-reveal]", {
-        y: 16,
-        duration: 0.38,
-        stagger: 0.06,
-        ease: "power3.out",
-      });
+      gsap.from("[data-dashboard-reveal]", { y: 16, duration: 0.38, stagger: 0.06, ease: "power3.out" });
     });
     return () => media.revert();
-  }, { scope: pageRef });
+  }, { scope: pageRef, dependencies: [query.isPending, query.isError, query.data?.length], revertOnUpdate: true });
   return (
     <main ref={pageRef} className="min-h-screen bg-background px-4 py-5 sm:px-6 sm:py-8">
       <div className="mx-auto max-w-6xl">
@@ -72,7 +67,7 @@ export default function TicketsPage() {
           ))}
         </div>
         {query.isSuccess && !query.data.length && (
-          <p className="mt-8 rounded-2xl border border-dashed border-brand-blue/20 bg-white p-8 text-center text-brand-slate">
+          <p data-dashboard-reveal className="mt-8 rounded-2xl border border-dashed border-brand-blue/20 bg-white p-8 text-center text-brand-slate">
             No active confirmed tickets yet.
           </p>
         )}

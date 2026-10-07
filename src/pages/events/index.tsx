@@ -25,15 +25,10 @@ export default function EventsPage() {
   useGSAP(() => {
     const media = gsap.matchMedia();
     media.add("(prefers-reduced-motion: no-preference)", () => {
-      gsap.from("[data-dashboard-reveal]", {
-        y: 16,
-        duration: 0.38,
-        stagger: 0.06,
-        ease: "power3.out",
-      });
+      gsap.from("[data-dashboard-reveal]", { y: 16, duration: 0.38, stagger: 0.06, ease: "power3.out" });
     });
     return () => media.revert();
-  }, { scope: pageRef });
+  }, { scope: pageRef, dependencies: [pending, failed, groups.data?.length, events.data?.length], revertOnUpdate: true });
 
   return (
     <main ref={pageRef} className="min-h-screen bg-background px-4 py-5 sm:px-6 sm:py-8">
@@ -66,7 +61,7 @@ export default function EventsPage() {
           </State>
         )}
         {!pending && !failed && groups.data?.length ? (
-          <section className="mt-10" aria-labelledby="groups-title">
+          <section data-dashboard-reveal className="mt-10" aria-labelledby="groups-title">
             <h2
               id="groups-title"
               className="text-2xl font-bold text-brand-navy"
@@ -103,7 +98,7 @@ export default function EventsPage() {
           </section>
         ) : null}
         {!pending && !failed && (
-          <section className="mt-10 pb-8" aria-labelledby="events-title">
+          <section data-dashboard-reveal className="mt-10 pb-8" aria-labelledby="events-title">
             <h2
               id="events-title"
               className="text-2xl font-bold text-brand-navy"
@@ -174,7 +169,7 @@ function State({
   children: React.ReactNode;
 }) {
   return (
-    <section className="mt-8 rounded-2xl border border-dashed border-brand-blue/20 bg-white p-8 text-center">
+    <section data-dashboard-reveal className="mt-8 rounded-2xl border border-dashed border-brand-blue/20 bg-white p-8 text-center">
       <h2 className="text-xl font-bold text-brand-navy">{title}</h2>
       <div className="mt-3 text-sm text-brand-slate">{children}</div>
     </section>
