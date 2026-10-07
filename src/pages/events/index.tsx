@@ -1,9 +1,11 @@
 import { ArrowRight, CalendarDays, Layers3, MapPin } from "lucide-react";
+import { useRef } from "react";
 import { Link } from "react-router-dom";
 import { usePublicEventGroups, usePublicEvents } from "@/api/events/queries";
 import { EventImage } from "@/components/event-image";
 import { AppHeader } from "@/components/layout/app-header";
 import { Button } from "@/components/ui/button";
+import { gsap, useGSAP } from "@/lib/motion";
 
 const date = (value: string | null) =>
   value
@@ -16,29 +18,28 @@ const date = (value: string | null) =>
 export default function EventsPage() {
   const groups = usePublicEventGroups();
   const events = usePublicEvents();
+  const pageRef = useRef<HTMLElement>(null);
   const pending = groups.isPending || events.isPending;
   const failed = groups.isError || events.isError;
 
+  useGSAP(() => {
+    const media = gsap.matchMedia();
+    media.add("(prefers-reduced-motion: no-preference)", () => {
+      gsap.from("[data-dashboard-reveal]", { y: 16, duration: 0.38, stagger: 0.06, ease: "power3.out" });
+    });
+    return () => media.revert();
+  }, { scope: pageRef, dependencies: [pending, failed, groups.data?.length, events.data?.length], revertOnUpdate: true });
+
   return (
-    <main className="min-h-screen bg-background px-4 py-5 sm:px-6 sm:py-8">
+    <main ref={pageRef} className="min-h-screen bg-background px-4 py-5 sm:px-6 sm:py-8">
       <div className="mx-auto max-w-6xl">
         <AppHeader />
-        <section className="mt-10">
-          <p className="text-xs font-bold uppercase tracking-[0.14em] text-brand-blue">
-            Open to explore
-          </p>
-          <h1 className="mt-2 text-4xl font-bold tracking-[-0.04em] text-brand-navy sm:text-5xl">
-            HIMTI events
-          </h1>
-          <p className="mt-3 max-w-2xl text-brand-slate">
-            Discover published event groups and their upcoming experiences.
-          </p>
+        <section data-dashboard-reveal className="mt-10">
+          <h1 className="text-4xl font-bold tracking-[-0.04em] text-brand-navy sm:text-5xl">HIMTI events</h1>
+          <p className="mt-3 max-w-2xl text-brand-slate">Discover published event groups and their upcoming experiences.</p>
         </section>
         {pending && (
-          <div
-            role="status"
-            className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3"
-          >
+          <div data-dashboard-reveal role="status" className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {[1, 2, 3].map((item) => (
               <div
                 key={item}
@@ -60,27 +61,27 @@ export default function EventsPage() {
           </State>
         )}
         {!pending && !failed && groups.data?.length ? (
-          <section className="mt-10" aria-labelledby="groups-title">
+          <section data-dashboard-reveal className="mt-10" aria-labelledby="groups-title">
             <h2
               id="groups-title"
               className="text-2xl font-bold text-brand-navy"
             >
               Event groups
             </h2>
-            <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {groups.data.map((group) => (
                 <Link
                   key={group.id}
                   to={`/event-groups/${encodeURIComponent(group.id)}`}
-                  className="overflow-hidden rounded-2xl border border-brand-blue/10 bg-white shadow-sm"
+                  className="min-w-0 overflow-hidden rounded-2xl border border-brand-blue/10 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 >
                   <EventImage
                     src={group.coverImageUrl}
                     alt={`${group.name} cover`}
                     className="h-40"
                   />
-                  <div className="p-5">
-                    <h3 className="text-xl font-bold text-brand-navy">
+                  <div className="p-6">
+                    <h3 className="break-words text-xl font-bold text-brand-navy">
                       {group.name}
                     </h3>
                     <p className="mt-2 line-clamp-2 text-sm leading-6 text-brand-slate">
@@ -97,20 +98,14 @@ export default function EventsPage() {
           </section>
         ) : null}
         {!pending && !failed && (
-          <section className="mt-10 pb-8" aria-labelledby="events-title">
-            <h2
-              id="events-title"
-              className="text-2xl font-bold text-brand-navy"
-            >
-              Events
-            </h2>
+          <section data-dashboard-reveal className="mt-10 pb-8" aria-labelledby="events-title">
             {events.data?.length ? (
-              <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                 {events.data.map((event) => (
                   <Link
                     key={event.id}
                     to={`/events/${encodeURIComponent(event.id)}`}
-                    className="group overflow-hidden rounded-2xl border border-brand-blue/10 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-ring"
+                    className="group min-w-0 overflow-hidden rounded-2xl border border-brand-blue/10 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-ring"
                   >
                     <EventImage
                       src={
@@ -119,13 +114,13 @@ export default function EventsPage() {
                       alt={`${event.name} cover`}
                       className="h-44"
                     />
-                    <div className="p-5">
+                    <div className="p-6">
                       {event.eventGroup && (
                         <p className="text-xs font-bold uppercase tracking-wide text-brand-blue">
                           {event.eventGroup.name}
                         </p>
                       )}
-                      <h3 className="mt-1 text-xl font-bold text-brand-navy">
+                      <h3 className="mt-1 break-words text-xl font-bold text-brand-navy">
                         {event.name}
                       </h3>
                       <p className="mt-2 line-clamp-2 text-sm leading-6 text-brand-slate">
@@ -168,7 +163,7 @@ function State({
   children: React.ReactNode;
 }) {
   return (
-    <section className="mt-8 rounded-2xl border border-dashed border-brand-blue/20 bg-white p-8 text-center">
+    <section data-dashboard-reveal className="mt-8 rounded-2xl border border-dashed border-brand-blue/20 bg-white p-8 text-center">
       <h2 className="text-xl font-bold text-brand-navy">{title}</h2>
       <div className="mt-3 text-sm text-brand-slate">{children}</div>
     </section>

@@ -56,9 +56,7 @@ export default function DashboardPage() {
       className="min-h-screen bg-background px-4 py-5 sm:px-6 sm:py-8"
     >
       <div className="mx-auto max-w-6xl">
-        <div data-dashboard-motion>
-          <AppHeader />
-        </div>
+        <AppHeader />
 
         <section
           data-dashboard-motion
