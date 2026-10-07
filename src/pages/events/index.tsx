@@ -99,12 +99,6 @@ export default function EventsPage() {
         ) : null}
         {!pending && !failed && (
           <section data-dashboard-reveal className="mt-10 pb-8" aria-labelledby="events-title">
-            <h2
-              id="events-title"
-              className="text-2xl font-bold text-brand-navy"
-            >
-              Events
-            </h2>
             {events.data?.length ? (
               <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                 {events.data.map((event) => (

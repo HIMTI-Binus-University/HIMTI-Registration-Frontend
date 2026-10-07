@@ -67,9 +67,10 @@ export default function TicketsPage() {
           ))}
         </div>
         {query.isSuccess && !query.data.length && (
-          <p data-dashboard-reveal className="mt-8 rounded-2xl border border-dashed border-brand-blue/20 bg-white p-8 text-center text-brand-slate">
-            No active confirmed tickets yet.
-          </p>
+          <section data-dashboard-reveal className="mt-8 rounded-2xl border border-dashed border-brand-blue/20 bg-white p-8 text-center">
+            <h2 className="text-xl font-bold text-brand-navy">No tickets yet</h2>
+            <div className="mt-3 text-sm text-brand-slate">No active confirmed tickets yet.</div>
+          </section>
         )}
       </div>
     </main>

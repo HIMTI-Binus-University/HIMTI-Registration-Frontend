@@ -145,7 +145,6 @@ export default function HomePage() {
       mm.add("(prefers-reduced-motion: no-preference)", () => {
         gsap
           .timeline({ delay: 0.12, defaults: { ease: motionEase } })
-          .from("nav", { y: -10, autoAlpha: 0, duration: 0.45 })
           .from(
             ".collage-photo",
             {
