@@ -19,7 +19,12 @@ export default function TicketsPage() {
   useGSAP(() => {
     const media = gsap.matchMedia();
     media.add("(prefers-reduced-motion: no-preference)", () => {
-      gsap.from("[data-dashboard-reveal]", { y: 12, autoAlpha: 0, duration: 0.45, stagger: 0.06, ease: "power3.out" });
+      gsap.from("[data-dashboard-reveal]", {
+        y: 16,
+        duration: 0.38,
+        stagger: 0.06,
+        ease: "power3.out",
+      });
     });
     return () => media.revert();
   }, { scope: pageRef });
