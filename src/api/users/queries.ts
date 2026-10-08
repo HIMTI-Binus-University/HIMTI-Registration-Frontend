@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import apiClient from "@/config/api-client";
 import { apiPaths } from "@/constants/api";
 import { queryKeys } from "@/constants/query-keys";
+import type { paths } from "@/generated/openapi";
 
 export interface User {
   id: string;
@@ -57,6 +58,10 @@ export type UserRegistrationOptions = {
   studyPrograms: UserOption[];
   binusRegions: UserOption[];
 };
+
+export type UpdateCurrentUserProfilePayload = NonNullable<
+  paths["/api/user/me"]["patch"]["requestBody"]
+>["content"]["application/json"];
 
 type UsersResponse = {
   msg: string;
@@ -114,11 +119,8 @@ export function useCompleteCurrentUserProfile() {
 export function useUpdateCurrentUserProfile() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (payload: {
-      name: string;
-      phoneNumber: string;
-      lineId: string;
-    }) => apiClient.patch(apiPaths.updateCurrentUserProfile, payload),
+    mutationFn: (payload: UpdateCurrentUserProfilePayload) =>
+      apiClient.patch(apiPaths.updateCurrentUserProfile, payload),
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: queryKeys.currentUser }),
   });

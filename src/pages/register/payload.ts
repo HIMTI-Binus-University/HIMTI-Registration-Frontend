@@ -23,6 +23,13 @@ export type RegistrationData = {
   affiliation: string;
 };
 
+export const resolveBinusUniversity = (options: UserRegistrationOptions) =>
+  options.universities.find(
+    (university) =>
+      university.shortName?.toUpperCase() === "BINUS" ||
+      university.name.toUpperCase() === "BINUS UNIVERSITY",
+  );
+
 export function buildRegistrationPayload(
   data: RegistrationData,
   options: UserRegistrationOptions,
@@ -38,11 +45,7 @@ export function buildRegistrationPayload(
   };
 
   if (data.institutionType === "BINUS") {
-    const binusUniversityId = options.universities.find(
-      (university) =>
-        university.shortName?.toUpperCase() === "BINUS" ||
-        university.name.toUpperCase() === "BINUS UNIVERSITY",
-    )?.id;
+    const binusUniversityId = resolveBinusUniversity(options)?.id;
     const binus = {
       ...common,
       universityId: binusUniversityId,
@@ -54,7 +57,7 @@ export function buildRegistrationPayload(
         ...binus,
         studyProgramId: data.major,
         nim: data.nim,
-        graduateBatch: data.batch,
+        graduateBatch: data.nim.slice(0, 2),
       };
     if (data.userType === "Lecturer")
       return { ...binus, department: data.department };

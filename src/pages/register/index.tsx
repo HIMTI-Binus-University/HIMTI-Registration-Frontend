@@ -8,7 +8,7 @@ import {
   Send,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { signOut } from "@/api/auth";
 import { Button } from "@/components/ui/button";
@@ -32,11 +32,23 @@ import {
   type UserType,
 } from "@/pages/register/payload";
 import {
+  clearElectionReturn,
+  getElectionReturn,
+  rememberElectionReturn,
+  registrationContinueLabel,
+  sanitizeReturnPath,
+} from "@/utils/return-path";
+import {
   clearRegistrationDraft,
   readRegistrationDraft,
   writeRegistrationDraft,
 } from "@/pages/register/draft";
-import axios from "axios";
+import { parseApiError } from "@/api/api-error";
+import {
+  validateRegistrationStep,
+  validBinusEmail,
+  type RegistrationErrors,
+} from "./validation";
 
 const initialData: RegistrationData = {
   userType: "",
@@ -97,8 +109,11 @@ function Field({
   onChange,
   required = true,
   type = "text",
+  inputMode,
+  pattern,
   placeholder,
   readOnly = false,
+  error,
 }: {
   label: string;
   name: keyof RegistrationData;
@@ -106,8 +121,11 @@ function Field({
   onChange: (name: keyof RegistrationData, value: string) => void;
   required?: boolean;
   type?: string;
+  inputMode?: "numeric";
+  pattern?: string;
   placeholder?: string;
   readOnly?: boolean;
+  error?: string;
 }) {
   return (
     <label className="block text-sm font-semibold text-brand-ink">
@@ -123,12 +141,34 @@ function Field({
         name={name}
         type={type}
         value={value}
+        inputMode={inputMode}
+        pattern={pattern}
+        maxLength={
+          name === "phone"
+            ? 20
+            : name === "nim"
+              ? inputMode === "numeric"
+                ? 10
+                : 50
+              : undefined
+        }
         required={required}
         readOnly={readOnly}
         placeholder={placeholder}
-        onChange={(event) => onChange(name, event.target.value)}
-        className="mt-2 h-11 w-full rounded-xl border border-brand-blue/15 bg-white px-3 text-sm font-medium text-brand-ink outline-none transition focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/15 read-only:bg-slate-100 read-only:text-brand-slate"
+        aria-invalid={!!error}
+        aria-describedby={error ? `${name}-error` : undefined}
+        onChange={(event) => {
+          if (inputMode === "numeric" && /[^0-9]/.test(event.target.value))
+            return;
+          onChange(name, event.target.value);
+        }}
+        className={`mt-2 h-11 w-full rounded-xl border bg-white px-3 text-sm font-medium text-brand-ink outline-none transition focus:ring-2 read-only:bg-slate-100 read-only:text-brand-slate ${error ? "border-red-500 focus:ring-red-200" : "border-brand-blue/15 focus:border-brand-blue focus:ring-brand-blue/15"}`}
       />
+      {error && (
+        <span id={`${name}-error`} className="mt-1 block text-xs text-red-700">
+          {error}
+        </span>
+      )}
     </label>
   );
 }
@@ -139,12 +179,14 @@ function SelectField({
   value,
   options,
   onChange,
+  error,
 }: {
   label: string;
   name: keyof RegistrationData;
   value: string;
   options: Array<{ value: string; label: string }>;
   onChange: (name: keyof RegistrationData, value: string) => void;
+  error?: string;
 }) {
   return (
     <label className="block text-sm font-semibold text-brand-ink">
@@ -160,7 +202,9 @@ function SelectField({
           value={value}
           required
           onChange={(event) => onChange(name, event.target.value)}
-          className="h-11 w-full appearance-none rounded-xl border border-brand-blue/15 bg-white px-3 pr-9 text-sm font-medium text-brand-ink outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/15"
+          aria-invalid={!!error}
+          aria-describedby={error ? `${name}-error` : undefined}
+          className={`h-11 w-full appearance-none rounded-xl border bg-white px-3 pr-9 text-sm font-medium text-brand-ink outline-none focus:ring-2 ${error ? "border-red-500 focus:ring-red-200" : "border-brand-blue/15 focus:border-brand-blue focus:ring-brand-blue/15"}`}
         >
           <option value="">Choose one</option>
           {options.map((option) => (
@@ -171,6 +215,11 @@ function SelectField({
         </select>
         <ChevronDown className="pointer-events-none absolute right-3 top-3 size-5 text-brand-slate" />
       </span>
+      {error && (
+        <span id={`${name}-error`} className="mt-1 block text-xs text-red-700">
+          {error}
+        </span>
+      )}
     </label>
   );
 }
@@ -180,19 +229,23 @@ function Choice({
   selected,
   onClick,
   disabled = false,
+  errorId,
 }: {
   label: string;
   selected: boolean;
   onClick: () => void;
   disabled?: boolean;
+  errorId?: string;
 }) {
   return (
     <button
       type="button"
       aria-pressed={selected}
+      aria-invalid={!!errorId}
+      aria-describedby={errorId}
       onClick={onClick}
       disabled={disabled}
-      className={`rounded-2xl border p-4 text-left transition focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${selected ? "border-brand-blue bg-brand-pale text-brand-blue shadow-sm" : "border-brand-blue/15 bg-white hover:border-brand-blue/40"}`}
+      className={`rounded-2xl border p-4 text-left transition focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${errorId ? "border-red-500" : selected ? "border-brand-blue bg-brand-pale text-brand-blue shadow-sm" : "border-brand-blue/15 bg-white hover:border-brand-blue/40"}`}
     >
       <span className="flex items-center justify-between font-bold">
         {label}
@@ -211,9 +264,19 @@ export default function RegisterPage({
 }: {
   reregister?: boolean;
 }) {
+  const [searchParams] = useSearchParams();
+  const returnTo = sanitizeReturnPath(
+    searchParams.get("returnTo"),
+    "/dashboard",
+  );
+  const electionReturnTo = !reregister
+    ? (rememberElectionReturn(searchParams.get("returnTo")) ??
+      getElectionReturn())
+    : null;
   const [step, setStep] = useState(0);
   const [data, setData] = useState(initialData);
   const [errors, setErrors] = useState<string[]>([]);
+  const [fieldErrors, setFieldErrors] = useState<RegistrationErrors>({});
   const [submitted, setSubmitted] = useState(false);
   const [pathNotice, setPathNotice] = useState("");
   const [emailVerified, setEmailVerified] = useState(false);
@@ -226,6 +289,8 @@ export default function RegisterPage({
   const [switchAccountError, setSwitchAccountError] = useState("");
   const hydratedProfile = useRef(false);
   const firstError = useRef<HTMLDivElement>(null);
+  const verificationGeneration = useRef(0);
+  const emailRef = useRef("");
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const profile = useCurrentUser();
@@ -267,12 +332,7 @@ export default function RegisterPage({
 
   useEffect(() => {
     const user = profile.data;
-    if (
-      !user ||
-      !draftContext ||
-      membershipStatus.isPending ||
-      (reregister && !options.data)
-    )
+    if (!user || !draftContext || membershipStatus.isPending || !options.data)
       return;
     if (!hydratedProfile.current) {
       hydratedProfile.current = true;
@@ -299,7 +359,7 @@ export default function RegisterPage({
         phone: user.phoneNumber ?? "",
         lineId: user.lineId ?? "",
         nim: user.nim ?? "",
-        batch: user.graduateBatch ?? "",
+        batch: (user.nim ?? "").slice(0, 2),
         binusEmail: user.outlookEmail ?? "",
         region:
           !reregister ||
@@ -326,6 +386,7 @@ export default function RegisterPage({
       const restoredData = draft
         ? { ...profileData, ...draft.data, personalEmail: user.email }
         : profileData;
+      restoredData.batch = restoredData.nim.slice(0, 2);
       if (!reregister) restoredData.membershipPosition = "Member";
 
       if (draft && restoredData.institutionType === "BINUS" && options.data) {
@@ -345,9 +406,28 @@ export default function RegisterPage({
         )
           restoredData.major = "";
       }
-
+      const verified = Boolean(
+        user.outlookEmailVerified &&
+        user.outlookEmail?.toLowerCase() ===
+          restoredData.binusEmail.trim().toLowerCase(),
+      );
       setData(restoredData);
-      setStep(draft?.step ?? 0);
+      emailRef.current = restoredData.binusEmail.trim().toLowerCase();
+      const context = {
+        options: options.data,
+        membershipPeriodAvailable: !!membershipPeriod,
+        reregister,
+        emailVerified: verified,
+      };
+      const restoredStep = draft?.step ?? 0;
+      const firstInvalid = Array.from(
+        { length: Math.min(restoredStep, 3) },
+        (_, index) => index,
+      ).find((index) => {
+        const result = validateRegistrationStep(restoredData, index, context);
+        return !!result.form || !!Object.keys(result.fields).length;
+      });
+      setStep(firstInvalid ?? restoredStep);
       setVerificationSent(
         Boolean(
           draft?.verificationSentFor &&
@@ -355,19 +435,14 @@ export default function RegisterPage({
             restoredData.binusEmail.toLowerCase(),
         ),
       );
-      setEmailVerified(
-        Boolean(
-          user.outlookEmailVerified &&
-          user.outlookEmail?.toLowerCase() ===
-            restoredData.binusEmail.toLowerCase(),
-        ),
-      );
+      setEmailVerified(verified);
       setDraftReady(true);
     }
   }, [
     draftContext,
     membershipStatus.isPending,
     membershipStatus.data?.currentPosition,
+    membershipPeriod,
     options.data,
     profile.data,
     reregister,
@@ -386,43 +461,88 @@ export default function RegisterPage({
     if (errors.length) firstError.current?.focus();
   }, [errors]);
   const resetVerification = () => {
+    verificationGeneration.current++;
     setVerificationSent(false);
     setEmailVerified(false);
     setVerificationNotice(null);
+    setVerificationChecking(false);
   };
   const update = (name: keyof RegistrationData, value: string) => {
-    setData((current) => ({ ...current, [name]: value }));
-    if (name === "binusEmail") resetVerification();
+    setData((current) => ({
+      ...current,
+      [name]: value,
+      ...(name === "nim"
+        ? { batch: /^\d{2}/.test(value) ? value.slice(0, 2) : "" }
+        : {}),
+    }));
+    if (
+      name === "binusEmail" &&
+      value.trim().toLowerCase() !== emailRef.current
+    ) {
+      emailRef.current = value.trim().toLowerCase();
+      resetVerification();
+    }
+    setFieldErrors((current) => ({ ...current, [name]: undefined }));
     setErrors([]);
   };
 
   const sendVerificationLink = () => {
+    const email = data.binusEmail.trim().toLowerCase();
+    if (!validBinusEmail(email)) {
+      setFieldErrors((current) => ({
+        ...current,
+        binusEmail: "Use a valid @binus.ac.id or @binus.edu email",
+      }));
+      setVerificationNotice({
+        type: "error",
+        message: "Enter a valid BINUS email before sending a link.",
+      });
+      return;
+    }
+    const generation = ++verificationGeneration.current;
     setVerificationNotice(null);
-    sendVerification.mutate(data.binusEmail, {
+    sendVerification.mutate(email, {
       onSuccess: () => {
+        if (
+          generation !== verificationGeneration.current ||
+          emailRef.current !== email
+        )
+          return;
         setVerificationSent(true);
         setVerificationNotice({
           type: "info",
-          message: `A new verification link was sent to ${data.binusEmail}.`,
+          message: `A new verification link was sent to ${email}.`,
         });
       },
-      onError: () =>
+      onError: (error) => {
+        if (
+          generation !== verificationGeneration.current ||
+          emailRef.current !== email
+        )
+          return;
         setVerificationNotice({
           type: "error",
-          message:
-            "We could not send the verification link. Check your connection and try again.",
-        }),
+          message: parseApiError(error).message,
+        });
+      },
     });
   };
 
   const checkVerificationStatus = async () => {
+    const email = data.binusEmail.trim().toLowerCase();
+    const generation = ++verificationGeneration.current;
     setVerificationChecking(true);
     setVerificationNotice(null);
     try {
       const { data: user } = await profile.refetch({ throwOnError: true });
+      if (
+        generation !== verificationGeneration.current ||
+        emailRef.current !== email
+      )
+        return;
       const verified = Boolean(
         user?.outlookEmailVerified &&
-        user.outlookEmail?.toLowerCase() === data.binusEmail.toLowerCase(),
+        user.outlookEmail?.toLowerCase() === email,
       );
       setEmailVerified(verified);
       setVerificationNotice({
@@ -431,39 +551,47 @@ export default function RegisterPage({
           ? "Your BINUS email has been verified."
           : "Your BINUS email has not been verified yet. Open the latest verification link, then check again.",
       });
-    } catch {
-      setVerificationNotice({
-        type: "error",
-        message:
-          "We could not check your verification status. Check your connection and try again.",
-      });
+    } catch (error) {
+      if (
+        generation === verificationGeneration.current &&
+        emailRef.current === email
+      )
+        setVerificationNotice({
+          type: "error",
+          message: parseApiError(error).message,
+        });
     } finally {
-      setVerificationChecking(false);
+      if (generation === verificationGeneration.current)
+        setVerificationChecking(false);
     }
   };
   const changePath = (
     name: "userType" | "institutionType",
     value: UserType | InstitutionType,
   ) => {
+    const changed = Boolean(data[name]) && data[name] !== value;
+    if (changed) {
+      emailRef.current = "";
+      resetVerification();
+      setPathNotice(
+        "Your institution details were cleared because your registration path changed.",
+      );
+    }
     setData((current) => {
-      const changed = Boolean(current[name]) && current[name] !== value;
       if (!changed) return { ...current, [name]: value };
       const next = { ...current, [name]: value };
       institutionKeys.forEach((key) => {
         next[key] = "";
       });
-      setPathNotice(
-        "Your institution details were cleared because your registration path changed.",
-      );
-      resetVerification();
       return next;
     });
+    setFieldErrors((current) => ({ ...current, [name]: undefined }));
     setErrors([]);
   };
 
   const verificationPanel = () => (
     <div
-      className="rounded-2xl border border-brand-blue/15 bg-brand-pale/40 p-4 md:col-span-2"
+      className={`rounded-2xl border p-4 md:col-span-2 ${fieldErrors.binusEmail ? "border-red-500 bg-red-50/40" : "border-brand-blue/15 bg-brand-pale/40"}`}
       aria-live="polite"
     >
       <div className="flex items-start justify-between gap-3">
@@ -529,6 +657,7 @@ export default function RegisterPage({
       )}
       {verificationNotice && (
         <p
+          role={verificationNotice.type === "error" ? "alert" : undefined}
           className={`mt-3 text-xs leading-5 ${
             verificationNotice.type === "success"
               ? "text-emerald-700"
@@ -547,18 +676,20 @@ export default function RegisterPage({
     if (data.userType === "Student" && data.institutionType === "BINUS")
       return (
         <div className="grid gap-4 md:grid-cols-2">
-          <Field label="NIM" name="nim" value={data.nim} onChange={update} />
           <Field
-            label="BINUSian batch"
-            name="batch"
-            value={data.batch}
+            label="NIM"
+            name="nim"
+            inputMode="numeric"
+            pattern="[1-9][0-9]{9}"
+            value={data.nim}
             onChange={update}
-            placeholder="e.g. 28"
+            error={fieldErrors.nim}
           />
           <Field
             label="BINUS email"
             name="binusEmail"
             value={data.binusEmail}
+            error={fieldErrors.binusEmail}
             onChange={update}
             type="email"
             placeholder="name@binus.ac.id"
@@ -568,6 +699,7 @@ export default function RegisterPage({
             label="BINUS region"
             name="region"
             value={data.region}
+            error={fieldErrors.region}
             options={(options.data?.binusRegions ?? []).map((item) => ({
               value: item.id,
               label: item.name,
@@ -578,6 +710,7 @@ export default function RegisterPage({
             label="BINUS major"
             name="major"
             value={data.major}
+            error={fieldErrors.major}
             options={(options.data?.studyPrograms ?? []).map((item) => ({
               value: item.id,
               label: item.name,
@@ -593,18 +726,21 @@ export default function RegisterPage({
             label="University"
             name="university"
             value={data.university}
+            error={fieldErrors.university}
             onChange={update}
           />
           <Field
             label="Student ID / NIM"
             name="nim"
             value={data.nim}
+            error={fieldErrors.nim}
             onChange={update}
           />
           <Field
             label="Major"
             name="major"
             value={data.major}
+            error={fieldErrors.major}
             onChange={update}
           />
         </div>
@@ -616,6 +752,7 @@ export default function RegisterPage({
             label="BINUS email"
             name="binusEmail"
             value={data.binusEmail}
+            error={fieldErrors.binusEmail}
             onChange={update}
             type="email"
             placeholder="name@binus.ac.id"
@@ -625,6 +762,7 @@ export default function RegisterPage({
             label="BINUS region"
             name="region"
             value={data.region}
+            error={fieldErrors.region}
             options={(options.data?.binusRegions ?? []).map((item) => ({
               value: item.id,
               label: item.name,
@@ -638,6 +776,11 @@ export default function RegisterPage({
                 : "Affiliation / role"
             }
             name={data.userType === "Lecturer" ? "department" : "affiliation"}
+            error={
+              fieldErrors[
+                data.userType === "Lecturer" ? "department" : "affiliation"
+              ]
+            }
             value={
               data.userType === "Lecturer" ? data.department : data.affiliation
             }
@@ -654,6 +797,11 @@ export default function RegisterPage({
               : "Institution / organization"
           }
           name={data.userType === "Lecturer" ? "university" : "institution"}
+          error={
+            fieldErrors[
+              data.userType === "Lecturer" ? "university" : "institution"
+            ]
+          }
           value={
             data.userType === "Lecturer" ? data.university : data.institution
           }
@@ -667,6 +815,11 @@ export default function RegisterPage({
               : "Affiliation / role"
           }
           name={data.userType === "Lecturer" ? "department" : "affiliation"}
+          error={
+            fieldErrors[
+              data.userType === "Lecturer" ? "department" : "affiliation"
+            ]
+          }
           value={
             data.userType === "Lecturer" ? data.department : data.affiliation
           }
@@ -676,139 +829,92 @@ export default function RegisterPage({
     );
   };
 
-  const validate = () => {
-    const required: Array<[keyof RegistrationData, string]> =
-      step === 0
-        ? [
-            ["userType", "Choose a user type"],
-            ["institutionType", "Choose an institution type"],
-            ...(reregister
-              ? ([["membershipPosition", "Choose a HIMTI position"]] as Array<
-                  [keyof RegistrationData, string]
-                >)
-              : []),
-          ]
-        : step === 1
-          ? [
-              ["name", "Enter your full name"],
-              ["phone", "Enter your phone number"],
-              ["personalEmail", "Your Google email is unavailable"],
-            ]
-          : [];
-    const missing = required
-      .filter(([key]) => !data[key])
-      .map(([, message]) => message);
-    if (step === 0 && !membershipPeriod) {
-      missing.push(
-        membershipStatus.isPending
-          ? "Membership period is still loading"
-          : "No active membership period is available",
-      );
-    }
-    if (step === 2 && (!data.userType || !data.institutionType))
-      return ["Choose your registration path first"];
-    if (step === 2) {
-      const values = institutionFieldsRequired();
-      missing.push(
-        ...values.filter(([key]) => !data[key]).map(([, message]) => message),
-      );
-      if (data.institutionType === "BINUS" && !emailVerified)
-        missing.push("Verify your BINUS email");
-    }
-    return missing;
-  };
-  const institutionFieldsRequired = (): Array<
-    [keyof RegistrationData, string]
-  > => {
-    if (data.userType === "Student" && data.institutionType === "BINUS")
-      return [
-        ["nim", "Enter your NIM"],
-        ["batch", "Enter your BINUSian batch"],
-        ["binusEmail", "Enter your BINUS email"],
-        ["region", "Choose your BINUS region"],
-        ["major", "Enter your BINUS major"],
-      ];
-    if (data.userType === "Student")
-      return [
-        ["university", "Enter your university"],
-        ["nim", "Enter your student ID / NIM"],
-        ["major", "Enter your major"],
-      ];
-    if (data.institutionType === "BINUS")
-      return [
-        ["binusEmail", "Enter your BINUS email"],
-        ["region", "Choose your BINUS region"],
-        [
-          data.userType === "Lecturer" ? "department" : "affiliation",
-          data.userType === "Lecturer"
-            ? "Enter your department / program"
-            : "Enter your affiliation / role",
-        ],
-      ];
-    return [
-      [
-        data.userType === "Lecturer" ? "university" : "institution",
-        data.userType === "Lecturer"
-          ? "Enter your university / institution"
-          : "Enter your institution / organization",
-      ],
-      [
-        data.userType === "Lecturer" ? "department" : "affiliation",
-        data.userType === "Lecturer"
-          ? "Enter your department / program"
-          : "Enter your affiliation / role",
-      ],
-    ];
+  const validationContext = () => ({
+    options: options.data,
+    membershipPeriodAvailable: !!membershipPeriod,
+    reregister,
+    emailVerified:
+      emailVerified &&
+      profile.data?.outlookEmail?.toLowerCase() ===
+        data.binusEmail.trim().toLowerCase(),
+  });
+  const validateStep = (index: number) => {
+    const result = validateRegistrationStep(data, index, validationContext());
+    setFieldErrors(result.fields);
+    setErrors(
+      result.form ? [result.form] : Object.values(result.fields).slice(0, 1),
+    );
+    return !result.form && !Object.keys(result.fields).length;
   };
   const next = () => {
-    const nextErrors = validate();
-    if (nextErrors.length) {
-      setErrors(nextErrors);
-      return;
+    for (let index = 0; index <= step; index++) {
+      if (!validateStep(index)) {
+        setStep(index);
+        return;
+      }
     }
+    setErrors([]);
+    setFieldErrors({});
     setStep((current) => Math.min(current + 1, 3));
   };
   const submit = () => {
+    for (let index = 0; index < 3; index++) {
+      if (!validateStep(index)) {
+        setStep(index);
+        return;
+      }
+    }
+    if (!options.data) return;
     setErrors([]);
-    if (!options.data) {
-      setErrors(["Registration options could not be loaded"]);
-      return;
-    }
-    if (
-      data.institutionType === "BINUS" &&
-      !options.data.universities.some((university) =>
-        university.name.toLowerCase().includes("binus"),
-      )
-    ) {
-      setErrors(["BINUS University is unavailable"]);
-      return;
-    }
+    setFieldErrors({});
     saveProfile.mutate(buildRegistrationPayload(data, options.data), {
       onSuccess: () => {
         if (draftContext) clearRegistrationDraft(draftContext);
+        if (!electionReturnTo) clearElectionReturn();
         setSubmitted(true);
       },
       onError: (error) => {
-        const body = axios.isAxiosError(error) ? error.response?.data : null;
-        const registrationError = body?.errors?.registration;
-        const fieldErrors =
-          body?.errors && typeof body.errors === "object"
-            ? Object.values(body.errors).flatMap((value) =>
-                typeof value === "object" && value && "_errors" in value
-                  ? ((value as { _errors?: string[] })._errors ?? [])
-                  : [],
-              )
-            : [];
-        setErrors([
-          registrationError ||
-            fieldErrors[0] ||
-            body?.msg ||
-            "Registration could not be saved",
-        ]);
+        const parsed = parseApiError(error);
+        const mapped: RegistrationErrors = {};
+        const keys: Record<string, keyof RegistrationData> = {
+          name: "name",
+          phoneNumber: "phone",
+          lineId: "lineId",
+          outlookEmail: "binusEmail",
+          regionId: "region",
+          studyProgramId: "major",
+          graduateBatch: "batch",
+          nim: "nim",
+          department: "department",
+          affiliation: "affiliation",
+          universityId: "university",
+          universityName:
+            data.userType === "Other" ? "institution" : "university",
+          studyProgramName: "major",
+          memberType: "userType",
+          institutionType: "institutionType",
+          membershipPosition: "membershipPosition",
+        };
+        for (const [key, message] of Object.entries(parsed.fieldErrors)) {
+          if (keys[key]) mapped[keys[key]] = message;
+        }
+        setFieldErrors(mapped);
+        const first = Object.keys(mapped)[0] as
+          keyof RegistrationData | undefined;
+        if (first)
+          setStep(
+            ["userType", "institutionType", "membershipPosition"].includes(
+              first,
+            )
+              ? 0
+              : ["name", "phone", "personalEmail", "lineId"].includes(first)
+                ? 1
+                : 2,
+          );
+        setErrors([first ? mapped[first]! : parsed.message]);
       },
     });
   };
-
   if (submitted)
     return (
       <div className="min-h-screen bg-background px-4 py-12">
@@ -828,7 +934,15 @@ export default function RegisterPage({
               : "Your registration is complete. You can now access your member information and community contacts."}
           </p>
           <Button asChild className="mt-8">
-            <Link to="/dashboard">Open dashboard</Link>
+            {electionReturnTo ? (
+              <a href={electionReturnTo}>
+                {registrationContinueLabel(electionReturnTo)}
+              </a>
+            ) : (
+              <Link to={returnTo}>
+                {returnTo === "/dashboard" ? "Open dashboard" : "Continue"}
+              </Link>
+            )}
           </Button>
         </div>
       </div>
@@ -935,7 +1049,7 @@ export default function RegisterPage({
               role="alert"
               className="mt-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-800"
             >
-              {errors[0]}. Check the highlighted fields before continuing.
+              {errors[0]}
             </div>
           )}
           <div className="mt-7">
@@ -947,29 +1061,55 @@ export default function RegisterPage({
                 <p className="mt-1 text-sm text-brand-slate">
                   This helps us ask only for details that apply to you.
                 </p>
+                {fieldErrors.userType && (
+                  <p id="userType-error" className="mt-2 text-sm text-red-700">
+                    {fieldErrors.userType}
+                  </p>
+                )}
                 <div className="mt-5 grid gap-3 sm:grid-cols-3">
                   {(["Student", "Lecturer", "Other"] as UserType[]).map(
                     (value) => (
                       <Choice
                         key={value}
                         label={value}
+                        errorId={
+                          fieldErrors.userType ? "userType-error" : undefined
+                        }
                         selected={data.userType === value}
                         onClick={() => changePath("userType", value)}
                       />
                     ),
                   )}
                 </div>
+                {fieldErrors.institutionType && (
+                  <p
+                    id="institutionType-error"
+                    className="mt-2 text-sm text-red-700"
+                  >
+                    {fieldErrors.institutionType}
+                  </p>
+                )}
                 <h2 className="mt-8 text-lg font-bold text-brand-navy">
                   Your institution
                 </h2>
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
                   <Choice
                     label="BINUS"
+                    errorId={
+                      fieldErrors.institutionType
+                        ? "institutionType-error"
+                        : undefined
+                    }
                     selected={data.institutionType === "BINUS"}
                     onClick={() => changePath("institutionType", "BINUS")}
                   />
                   <Choice
                     label="Non-BINUS"
+                    errorId={
+                      fieldErrors.institutionType
+                        ? "institutionType-error"
+                        : undefined
+                    }
                     selected={data.institutionType === "Non-BINUS"}
                     onClick={() => changePath("institutionType", "Non-BINUS")}
                   />
@@ -993,6 +1133,14 @@ export default function RegisterPage({
                 >
                   Assigned automatically and cannot be changed here.
                 </p>
+                {fieldErrors.membershipPosition && (
+                  <p
+                    id="membershipPosition-error"
+                    className="mt-2 text-sm text-red-700"
+                  >
+                    {fieldErrors.membershipPosition}
+                  </p>
+                )}
                 {reregister && (
                   <fieldset className="mt-7">
                     <legend className="text-lg font-bold text-brand-navy">
@@ -1010,6 +1158,11 @@ export default function RegisterPage({
                         <Choice
                           key={display}
                           label={display}
+                          errorId={
+                            fieldErrors.membershipPosition
+                              ? "membershipPosition-error"
+                              : undefined
+                          }
                           selected={data.membershipPosition === display}
                           onClick={() => update("membershipPosition", display)}
                         />
@@ -1042,19 +1195,24 @@ export default function RegisterPage({
                     label="Full name"
                     name="name"
                     value={data.name}
+                    error={fieldErrors.name}
                     onChange={update}
                   />
                   <Field
-                    label="Phone number"
+                    label="WhatsApp number"
                     name="phone"
                     value={data.phone}
+                    error={fieldErrors.phone}
                     onChange={update}
                     type="tel"
+                    inputMode="numeric"
+                    pattern="[0-9]+"
                   />
                   <Field
                     label="Google email"
                     name="personalEmail"
                     value={data.personalEmail}
+                    error={fieldErrors.personalEmail}
                     onChange={update}
                     type="email"
                     readOnly
@@ -1062,6 +1220,7 @@ export default function RegisterPage({
                   <Field
                     label="LINE ID"
                     name="lineId"
+                    error={fieldErrors.lineId}
                     value={data.lineId}
                     onChange={update}
                   />

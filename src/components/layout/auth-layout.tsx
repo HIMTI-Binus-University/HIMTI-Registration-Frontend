@@ -39,7 +39,8 @@ export function AuthLayout({ children }: { children: ReactNode }) {
         >
           <span className="flex items-center gap-3">
             <img
-              src="/icon-primary.svg"
+              data-himti-brand-target
+              src="/logo-himti.png"
               alt=""
               className="size-16 object-contain"
             />

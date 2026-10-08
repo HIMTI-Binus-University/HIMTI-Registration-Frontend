@@ -16,7 +16,7 @@ small so forks can add feature folders as the product grows.
 │   │   └── layout/             # Shared layout components
 │   ├── config/                 # API client, runtime, routing, and query config
 │   ├── constants/              # API endpoints, query keys, and static values
-│   ├── data/                   # Static or seed data
+│   ├── data/                   # Committed frontend static data (not database seeds)
 │   ├── hooks/                  # Reusable and feature-specific React hooks
 │   ├── lib/                    # Shared library helpers
 │   ├── pages/                  # Route-level components grouped by feature
@@ -187,7 +187,50 @@ Start the development server:
 npm run dev
 ```
 
-The default Vite URL for this setup is `http://localhost:3000`.
+Native `npm run dev` uses `http://localhost:3000`; set `VITE_APP_URL` in `.env`
+to that URL for native development. Docker uses `http://localhost:3001` instead.
+
+### Docker development (default)
+
+From this `frontend` directory, create `.env` with `cp .env.example .env`, then:
+
+```bash
+docker compose up --build -d
+```
+
+The default Compose file builds the Node development stage and runs Vite on
+`http://localhost:3001`. Source is bind-mounted, so edits use HMR without
+rebuilding. `docker compose build` only builds the image; it does not start
+the server. `docker-compose.dev.yml` remains an optional standalone equivalent
+(`docker compose -f docker-compose.dev.yml up --build -d`).
+
+After changing `.env`, recreate the container with
+`docker compose up -d --force-recreate` so Vite restarts with the new environment. After dependency
+changes, rebuild and replace the anonymous dependency volume:
+
+```bash
+docker compose up --build -d --renew-anon-volumes
+```
+
+Each repository runs its own Compose setup, not a workspace aggregate. The
+intentional shared local ports are internal frontend `3000`, registration
+frontend `3001`, election frontend `3002`, and backend `8000`. This frontend
+does not start a backend: start the shared backend separately and point
+`VITE_API_BASE_URL` at it. The backend automatically runs migrations and seeds
+on startup; no frontend database seed command is needed. See the shared backend
+README for Google sign-in, Admin role setup, and its opt-in development-only
+System Admin auto-login (`ENABLE_DEV_AUTO_LOGIN=true` with `NODE_ENV=development`).
+
+### Docker production (opt-in)
+
+```bash
+docker compose -f docker-compose.prod.yml up --build -d
+```
+
+This preserves the static Nginx build on port `3001`, with no source mounts or
+HMR. Stop the development service first (`docker compose down`), since both
+variants use the same port and container name. `VITE_` values are embedded at
+build time; changes require rebuilding this production image, not restarting it.
 
 ### Build
 
@@ -197,16 +240,8 @@ Create a production build:
 npm run build
 ```
 
-If the project supports additional Vite modes, build them with the matching
-scripts:
-
-```bash
-npm run build:dev
-npm run build:staging
-```
-
-Set the appropriate environment variables before building each environment.
-Vite embeds public frontend configuration at build time.
+Vite embeds public frontend configuration at build time. Set the appropriate
+environment variables before running `npm run build`; the output is `dist`.
 
 ### Preview
 
@@ -429,13 +464,18 @@ customizing accessible primitives.
 
 ## Deployment
 
-Describe the project's deployment target and release process here.
+`.github/workflows/deploy-vps.yml` builds the static Nginx Docker image and
+pushes it to `ghcr.io/himti-binus-university/himti-registration-frontend`.
+Pushes to `dev` deploy development; pushes to `main` deploy production. Manual
+dispatch can select either target, but production is restricted to `main`.
 
-- Production URL: `<DEPLOYMENT_URL>`
-- Hosting platform: `<HOSTING_PLATFORM>`
-- Required build command: `npm run build`
-- Build output directory: `dist`
-- Runtime or proxy configuration: `<RUNTIME_CONFIGURATION>`
+The workflow supplies build-time API/application URLs for
+`https://dev-registration.himtibinus.or.id` or
+`https://registration.himtibinus.or.id`. Both are static deployments, not Vite
+HMR servers. It uses SSH to pull and start the matching service/profile in
+`/opt/himti-platform`, then restarts Caddy. Deployment requires the configured
+VPS SSH and GHCR secrets. Local production uses `docker-compose.prod.yml`;
+`npm run build` also produces the static `dist` directory.
 
 ## Contributing
 

@@ -1,15 +1,17 @@
 import { LoaderCircle } from "lucide-react";
 import axios from "axios";
 import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { AuthLayout } from "@/components/layout/auth-layout";
 import { gsap, useGSAP } from "@/lib/motion";
 import { useRef } from "react";
 import { useCurrentUser } from "@/api/users/queries";
 import { Button } from "@/components/ui/button";
+import { consumeReturnPath, sanitizeReturnPath } from "@/utils/return-path";
 
 export default function AuthCallbackPage() {
   const navigate = useNavigate();
+  const [params] = useSearchParams();
   const profile = useCurrentUser();
   const spinnerRef = useRef<SVGSVGElement>(null);
 
@@ -35,18 +37,26 @@ export default function AuthCallbackPage() {
       axios.isAxiosError(profile.error) &&
       profile.error.response?.status === 401
     )
-      navigate("/login", { replace: true });
-    if (profile.isSuccess)
       navigate(
-        profile.data.registrationCompleted ? "/dashboard" : "/register",
+        `/login?returnTo=${encodeURIComponent(consumeReturnPath("/dashboard"))}`,
         { replace: true },
       );
+    if (profile.isSuccess) {
+      const requested = sanitizeReturnPath(
+        params.get("returnTo"),
+        consumeReturnPath(
+          profile.data.registrationCompleted ? "/dashboard" : "/register",
+        ),
+      );
+      navigate(requested, { replace: true });
+    }
   }, [
     navigate,
     profile.data,
     profile.error,
     profile.isError,
     profile.isSuccess,
+    params,
   ]);
 
   if (profile.isError)

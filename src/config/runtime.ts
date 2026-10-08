@@ -1,4 +1,10 @@
+const normalizeUrl = (value: string) => value.replace(/\/+$/, "");
+const normalizeApiOrigin = (value: string) =>
+  normalizeUrl(value).replace(/\/api$/, "");
+
 export const runtime = {
-  apiBaseUrl: import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4000",
-  appUrl: import.meta.env.VITE_APP_URL ?? window.location.origin,
+  apiBaseUrl: normalizeApiOrigin(
+    import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000",
+  ),
+  appUrl: normalizeUrl(import.meta.env.VITE_APP_URL ?? window.location.origin),
 };

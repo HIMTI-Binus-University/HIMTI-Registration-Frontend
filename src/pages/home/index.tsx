@@ -1,5 +1,5 @@
-import { ArrowRight, Search } from "lucide-react";
-import { useRef } from "react";
+import { ArrowRight, Search, Sparkles } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { gsap, motionEase, useGSAP } from "@/lib/motion";
@@ -39,7 +39,8 @@ function Brand() {
       className="flex min-w-0 items-center gap-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 sm:gap-3"
     >
       <img
-        src="/icon-primary.svg"
+        data-himti-brand-target
+        src="/logo-himti.png"
         alt=""
         className="size-8 shrink-0 object-contain sm:size-10"
       />
@@ -85,6 +86,57 @@ function EventCollage() {
 
 export default function HomePage() {
   const pageRef = useRef<HTMLDivElement>(null);
+  const [assetsReady, setAssetsReady] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    const sources = ["/logo-himti.png", ...eventPhotos.map(({ src }) => src)];
+    const ready = sources.map(
+      (src) =>
+        new Promise<void>((resolve) => {
+          const image = new Image();
+          image.onload = () => {
+            void image.decode?.().catch(() => undefined).finally(resolve);
+          };
+          image.onerror = () => resolve();
+          image.src = src;
+        }),
+    );
+    const timeout = window.setTimeout(() => active && setAssetsReady(true), 2500);
+    void Promise.all(ready).then(() => active && setAssetsReady(true));
+    return () => {
+      active = false;
+      window.clearTimeout(timeout);
+    };
+  }, []);
+
+
+  useGSAP(
+    () => {
+      const mm = gsap.matchMedia();
+      mm.add("(prefers-reduced-motion: no-preference) and (pointer: fine)", () => {
+        const root = pageRef.current;
+        if (!root) return;
+        const copy = root.querySelector<HTMLElement>(".hero-copy");
+        const collage = root.querySelector<HTMLElement>(".event-collage");
+        const move = (event: PointerEvent) => {
+          const x = (event.clientX / window.innerWidth - 0.5) * 2;
+          const y = (event.clientY / window.innerHeight - 0.5) * 2;
+          gsap.to(copy, { x: x * -2, y: y * -1, duration: 0.7, overwrite: true });
+          gsap.to(collage, { x: x * 4, y: y * 3, duration: 0.9, overwrite: true });
+        };
+        const reset = () => gsap.to([copy, collage], { x: 0, y: 0, duration: 0.8, overwrite: true });
+        root.addEventListener("pointermove", move);
+        root.addEventListener("pointerleave", reset);
+        return () => {
+          root.removeEventListener("pointermove", move);
+          root.removeEventListener("pointerleave", reset);
+        };
+      });
+      return () => mm.revert();
+    },
+    { scope: pageRef, dependencies: [assetsReady], revertOnUpdate: true },
+  );
 
   useGSAP(
     () => {
@@ -93,7 +145,6 @@ export default function HomePage() {
       mm.add("(prefers-reduced-motion: no-preference)", () => {
         gsap
           .timeline({ delay: 0.12, defaults: { ease: motionEase } })
-          .from("nav", { y: -10, autoAlpha: 0, duration: 0.45 })
           .from(
             ".collage-photo",
             {
@@ -147,6 +198,12 @@ export default function HomePage() {
       ref={pageRef}
       className="home-page relative min-h-dvh overflow-x-hidden bg-background text-brand-ink"
     >
+      {!assetsReady && (
+        <main className="app-loading absolute inset-0 z-30" aria-live="polite" aria-busy="true">
+          <img src="/logo-himti.png" width={72} height={72} alt="" />
+          <strong>Preparing your HIMTI experience...</strong>
+        </main>
+      )}
       <div aria-hidden="true" className="hero-wash absolute inset-0" />
 
       <header className="home-header relative z-20 px-3 pt-3 sm:px-6 sm:pt-6">
@@ -189,19 +246,26 @@ export default function HomePage() {
               students learn, connect, and create unforgettable experiences
               together.
             </p>
-            <div className="hero-actions mt-3 flex gap-2 sm:mt-6 sm:gap-3 md:mt-9">
+            <div className="hero-actions mt-3 grid grid-cols-2 gap-2 sm:mt-6 sm:gap-3 md:mt-9">
               <Button
                 asChild
                 variant="outline"
-                className="h-10 min-h-0 flex-1 border-brand-blue/20 bg-white/70 px-3 text-sm text-brand-navy sm:h-12 sm:flex-none sm:px-7 sm:text-base"
+                className="h-10 min-h-0 border-brand-blue/20 bg-white/70 px-3 text-sm text-brand-navy sm:h-12 sm:px-7 sm:text-base"
+              >
+                <Link to="/events"><Search className="mr-2 size-4" />Browse events</Link>
+              </Button>
+              <Button
+                asChild
+                variant="outline"
+                className="h-10 min-h-0 border-brand-blue/20 bg-white/70 px-3 text-sm text-brand-navy sm:h-12 sm:px-7 sm:text-base"
               >
                 <a href="https://ofog.himtibinus.or.id">
-                  <Search className="mr-2 size-4" /> Explore HIMTI
+                  <Sparkles className="mr-2 size-4" /> Explore HIMTI
                 </a>
               </Button>
               <Button
                 asChild
-                className="h-10 min-h-0 flex-1 px-3 text-sm sm:h-12 sm:flex-none sm:px-7 sm:text-base"
+                className="col-span-2 h-10 min-h-0 px-3 text-sm sm:h-12 sm:px-7 sm:text-base"
               >
                 <Link to="/register">
                   Join HIMTI <ArrowRight className="ml-2 size-5" />

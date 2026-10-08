@@ -1,38 +1,88 @@
 import { useQuery } from "@tanstack/react-query";
 import apiClient from "@/config/api-client";
-import { apiPaths } from "@/constants/api";
 import { queryKeys } from "@/constants/query-keys";
+import type { paths } from "@/generated/openapi";
 
-export type MemberEvent = {
+type PublicEvent = {
+  id: string;
+  eventGroupId: string | null;
+  name: string;
+  publicDescription: string | null;
+  startsAt: string | null;
+  endsAt: string | null;
+  locationName: string | null;
+  locationAddress: string | null;
+  locationUrl: string | null;
+  coverImageUrl: string | null;
+  primaryColor: string | null;
+  secondaryColor: string | null;
+  status: "PUBLISHED" | "CLOSED" | "CANCELLED";
+  eventGroup: {
+    name: string;
+    coverImageUrl: string | null;
+    primaryColor: string | null;
+    secondaryColor: string | null;
+  } | null;
+};
+
+export type PublicEventGroup = {
   id: string;
   name: string;
   publicDescription: string | null;
   coverImageUrl: string | null;
-  subevents: MemberSubevent[];
+  primaryColor: string | null;
+  secondaryColor: string | null;
+  events: PublicEvent[];
 };
 
-export type MemberSubevent = {
-  id: string;
-  name: string;
-  publicDescription: string | null;
-  date: string;
-  type: string;
-  locationName: string | null;
-  locationUrl: string | null;
-  posterUrl: string | null;
-  destinationUrl: string | null;
-  position: number;
-  price: number;
-  maxParticipants: number | null;
-  status: "OPEN" | "CLOSED" | "CANCELLED";
-};
+type EventListResponse = { data: PublicEvent[] };
+type EventResponse = { data: PublicEvent };
+type EventGroupListResponse = { data: PublicEventGroup[] };
+type EventGroupResponse = { data: PublicEventGroup };
 
-export function usePublishedEvents() {
+const eventGroupsPath: keyof paths = "/api/event-groups";
+const eventsPath: keyof paths = "/api/events";
+
+export function usePublicEventGroups() {
   return useQuery({
-    queryKey: queryKeys.publishedEvents,
+    queryKey: queryKeys.publicEventGroups,
     queryFn: () =>
       apiClient
-        .get<{ data: MemberEvent[] }>(apiPaths.publishedEvents)
+        .get<EventGroupListResponse>(eventGroupsPath)
         .then(({ data }) => data.data),
+  });
+}
+
+export function usePublicEventGroup(eventGroupId: string) {
+  return useQuery({
+    queryKey: queryKeys.publicEventGroup(eventGroupId),
+    queryFn: () =>
+      apiClient
+        .get<EventGroupResponse>(
+          `/api/event-groups/${encodeURIComponent(eventGroupId)}`,
+        )
+        .then(({ data }) => data.data),
+    enabled: Boolean(eventGroupId),
+  });
+}
+
+export function usePublicEvents() {
+  return useQuery({
+    queryKey: queryKeys.publicEvents,
+    queryFn: () =>
+      apiClient
+        .get<EventListResponse>(eventsPath)
+        .then(({ data }) => data.data),
+  });
+}
+
+export function usePublicEvent(eventId: string) {
+  return useQuery({
+    queryKey: queryKeys.publicEvent(eventId),
+    queryFn: () =>
+      apiClient
+        .get<EventResponse>(`/api/events/${encodeURIComponent(eventId)}`)
+        .then(({ data }) => data.data),
+    enabled: Boolean(eventId),
   });
 }
