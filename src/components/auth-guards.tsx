@@ -8,6 +8,7 @@ import {
   currentReturnPath,
   getElectionReturn,
   rememberElectionReturn,
+  registrationContinueLabel,
   storeReturnPath,
 } from "@/utils/return-path";
 import { AppLoading } from "@/components/app-motion";
@@ -94,7 +95,9 @@ export function RequireIncompleteRegistration({
         <section className="space-y-5 text-center">
           <h1 className="text-3xl font-bold">Registration complete</h1>
           <Button asChild>
-            <a href={electionReturn}>Continue to election</a>
+            <a href={electionReturn}>
+              {registrationContinueLabel(electionReturn)}
+            </a>
           </Button>
         </section>
       </main>
