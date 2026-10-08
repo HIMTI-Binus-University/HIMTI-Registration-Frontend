@@ -4,6 +4,7 @@ import {
   electionReturnPath,
   getElectionReturn,
   rememberElectionReturn,
+  registrationContinueLabel,
   sanitizeReturnPath,
   storeReturnPath,
 } from "./return-path";
@@ -27,6 +28,24 @@ describe("authentication return paths", () => {
 });
 
 describe("election registration returns", () => {
+  test.each([
+    ["http://localhost:3001", "http://localhost:3000"],
+    [
+      "https://dev-registration.himtibinus.or.id",
+      "https://dev-admin.himtibinus.or.id",
+    ],
+    ["https://registration.himtibinus.or.id", "https://admin.himtibinus.or.id"],
+  ])("preserves Internal Tools return for %s", (registration, internal) => {
+    const destination = `${internal}/login`;
+    expect(rememberElectionReturn(destination, registration)).toBe(destination);
+    expect(getElectionReturn(registration)).toBe(destination);
+    expect(registrationContinueLabel(destination)).toBe(
+      "Continue to HIMTI Internal Tools",
+    );
+    expect(
+      electionReturnPath(`${internal}/auth/error`, registration),
+    ).toBeNull();
+  });
   test("allows only the local election ballot from local registration", () => {
     const origin = "http://localhost:3001";
     expect(electionReturnPath("http://localhost:3002/vote", origin)).toBe(

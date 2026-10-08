@@ -35,6 +35,7 @@ import {
   clearElectionReturn,
   getElectionReturn,
   rememberElectionReturn,
+  registrationContinueLabel,
   sanitizeReturnPath,
 } from "@/utils/return-path";
 import {
@@ -934,7 +935,9 @@ export default function RegisterPage({
           </p>
           <Button asChild className="mt-8">
             {electionReturnTo ? (
-              <a href={electionReturnTo}>Continue to election</a>
+              <a href={electionReturnTo}>
+                {registrationContinueLabel(electionReturnTo)}
+              </a>
             ) : (
               <Link to={returnTo}>
                 {returnTo === "/dashboard" ? "Open dashboard" : "Continue"}

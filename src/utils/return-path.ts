@@ -60,6 +60,14 @@ export function electionReturnPath(
   if (!electionOrigin) return null;
   try {
     const url = new URL(value);
+    const internalOrigin =
+      registrationOrigin === "http://localhost:3001"
+        ? "http://localhost:3000"
+        : registrationOrigin === "https://dev-registration.himtibinus.or.id"
+          ? "https://dev-admin.himtibinus.or.id"
+          : "https://admin.himtibinus.or.id";
+    if (url.origin === internalOrigin && url.pathname === "/login")
+      return url.href;
     return url.origin === electionOrigin &&
       ["/", "/vote", "/candidates"].includes(url.pathname)
       ? url.href
@@ -67,6 +75,12 @@ export function electionReturnPath(
   } catch {
     return null;
   }
+}
+
+export function registrationContinueLabel(destination: string) {
+  return new URL(destination).pathname === "/login"
+    ? "Continue to HIMTI Internal Tools"
+    : "Continue to election";
 }
 
 export function rememberElectionReturn(
